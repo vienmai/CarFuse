@@ -1,0 +1,33 @@
+ndt_locator:
+  ros__parameters:
+    # NDT parameters
+    ndt:
+      epsilon: 0.01
+      stepsize: 0.1
+      resolution: 1.0
+      maxiters: 20
+      use_initial_guess: true
+
+    # TF2 buffer size
+    tf2_buffer_size: 10
+
+    # Subscriber topics
+    scan_topic: "/scan"
+    initial_pose_topic: "/initial_pose"
+    map_topic: "/map"
+
+    # Publisher topics
+    pose_topic: "/pose"
+    cloud_topic: "/cloud"
+    tf_topic: "/tf"
+
+    # Visualization topics
+    viz_pose_topic: "/viz/pose"
+
+    # Reference frames
+    map_frame: "map"
+    vehicle_frame: "base_link"
+    laser_frame: "laser"
+
+    # Map file
+    map_file: "maps/map.pcd"
