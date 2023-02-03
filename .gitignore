@@ -1,0 +1,23 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Data
+**/data/*
+**/tmp/*
+
+# Build artifact
+**/build/*
+**/install/*
+
+# Log
+**/log/*
+.log
+
+# Figures
+*.svg
+*.png
+
+# Mac/OSX
+.DS_Store
