@@ -9,10 +9,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN mkdir -p ~/ros2_ws/src/ndt
 WORKDIR /ros2_ws
 
-# COPY . ./src/ndt
+COPY . ./src/ndt
 
-RUN source /opt/ros/${ROS_DISTRO}/setup.sh
-#&& \ rosdep install -i --from-path src --rosdistro ${ROS_DISTRO} -y
+RUN source /opt/ros/${ROS_DISTRO}/setup.sh && \
+    rosdep install -i --from-path src --rosdistro ${ROS_DISTRO} -y
 
 COPY entrypoint.sh .
 RUN ["chmod", "+x", "entrypoint.sh"]

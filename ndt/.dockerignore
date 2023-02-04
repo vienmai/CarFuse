@@ -1,6 +1,8 @@
 **/tmp/*
 tmp.*
 
+.vscode
+
 build/
 **/build/*
 
