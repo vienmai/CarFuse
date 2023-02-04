@@ -5,11 +5,11 @@
 #include <sensor_msgs/msg/point_cloud2.hpp>
 
 class MapPublisher : public rclcpp::Node {
-public:
+ public:
   MapPublisher();
-  void publish_map(const std::string& path);
+  void publish_map(const std::string &path);
 
-private:
+ private:
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr map_pub_;
 };
 

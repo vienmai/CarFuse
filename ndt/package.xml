@@ -4,10 +4,14 @@
   <version>0.0.1</version>
   <description>NDT based localization package</description>
 
-  <maintainer email="youremail@example.com">Your Name</maintainer>
+  <maintainer email="vienmv90@gmail.com">Your Name</maintainer>
   <license>TODO</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <test_depend>ament_lint_auto</test_depend>
+  <test_depend>ament_lint_common</test_depend>
+  <test_depend>ament_cmake_gtest</test_depend>
 
   <depend>rclcpp</depend>
   <depend>sensor_msgs</depend>

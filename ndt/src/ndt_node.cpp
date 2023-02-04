@@ -1,11 +1,12 @@
+#include <geometry_msgs/msg/pose_array.hpp>
+#include <rclcpp/rclcpp.hpp>
+
 #include "ndt/map_publisher.hpp"
 #include "ndt/ndt.hpp"
-#include <rclcpp/rclcpp.hpp>
-#include <geometry_msgs/msg/pose_array.hpp>
 
 using namespace localization;
 
-int main(int argc, char * argv[]) {
+int main(int argc, char *argv[]) {
   rclcpp::init(argc, argv);
 
   // Create an instance of the NDTLocalization class and a MapPublisher node
@@ -14,10 +15,10 @@ int main(int argc, char * argv[]) {
 
   // Read the configuration file
   std::string map_file = ndt_node->get_parameter_or(
-    "map_file",
-    std::string("/ros2_ws/install/ndt_locator/share/ndt_locator/maps/map.pcd")
+      "map_file", std::string("/ros2_ws/install/ndt_locator/share/ndt_locator/"
+                              "maps/court_yard_map.pcd")
   );
-  RCLCPP_INFO(ndt_node->get_logger(), "Map file: %s",  map_file.c_str());
+  RCLCPP_INFO(ndt_node->get_logger(), "Map file: %s", map_file.c_str());
 
   // Publish the map to the map topic
   map_publisher_node->publish_map(map_file);
@@ -38,13 +39,15 @@ int main(int argc, char * argv[]) {
 
   // Publish the initial pose
   auto initial_pose_publisher =
-    ndt_node->create_publisher<geometry_msgs::msg::PoseStamped>("/initial_pose", 1);
+      ndt_node->create_publisher<geometry_msgs::msg::PoseStamped>(
+          "/initial_pose", 1
+      );
   initial_pose_publisher->publish(initial_pose_msg);
   RCLCPP_INFO(ndt_node->get_logger(), "Initial pose published.");
 
   // Create a publisher for the estimated poses
   auto pose_publisher =
-    ndt_node->create_publisher<geometry_msgs::msg::PoseArray>("/viz/pose", 1);
+      ndt_node->create_publisher<geometry_msgs::msg::PoseArray>("/viz/pose", 1);
 
   // Spin to receive sensor data and update estimated poses
   rclcpp::spin(ndt_node);
@@ -55,8 +58,8 @@ int main(int argc, char * argv[]) {
   geometry_msgs::msg::PoseArray msg;
   msg.header.stamp = rclcpp::Clock().now();
   msg.header.frame_id = "map";
-  for (const auto& pose : estimated_poses) {
-      msg.poses.push_back(pose.pose);
+  for (const auto &pose : estimated_poses) {
+    msg.poses.push_back(pose.pose);
   }
   pose_publisher->publish(msg);
 
