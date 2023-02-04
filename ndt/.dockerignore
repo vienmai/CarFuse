@@ -1,0 +1,13 @@
+**/tmp/*
+tmp.*
+
+build/
+**/build/*
+
+log/
+**/log/*
+
+data/
+**/data/*
+
+note.md

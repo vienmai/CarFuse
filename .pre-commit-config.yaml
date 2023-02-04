@@ -11,7 +11,7 @@ repos:
     hooks:
     - id: clang-format
       name: clang-format
-      entry: /usr/local/bin/clang-format
+      entry: clang-format -i
       language: system
       types_or: [c, c++]
-      args: [--style=file, --verbose, --Werror, --path=$(git ls-files "*.cpp" "*.hpp")]
+      args: ["-style=file"]

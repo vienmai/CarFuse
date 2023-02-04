@@ -1,0 +1,28 @@
+version: '3'
+services:
+  ndt:
+    image: ndt:dev
+    container_name: ndt_locator
+    volumes:
+      - .:/ros2_ws/src/ndt:ro
+      - /Users/eviemai/Data:/ros2_ws/src/ndt/maps:ro
+    environment:
+      - DISPLAY=novnc:0.0
+    networks:
+      - X11
+    privileged: true
+    stdin_open: true
+    tty: true
+
+  novnc:
+    image: theasp/novnc:latest
+    environment:
+      - DISPLAY_WIDTH=1728
+      - DISPLAY_HEIGHT=972
+    ports:
+      - "8080:8080"
+    networks:
+      - X11
+
+networks:
+  X11:
