@@ -45,12 +45,20 @@ target_include_directories(ndt_node
   ${PCL_INCLUDE_DIRS}
 )
 ament_target_dependencies(ndt_node ${dependencies})
-
 target_link_libraries(ndt_node ${PROJECT_NAME} ${PCL_LIBRARIES})
+
+add_executable(map_publisher_node src/map_publisher_node.cpp)
+target_include_directories(map_publisher_node
+  PRIVATE include
+  ${PCL_INCLUDE_DIRS}
+)
+ament_target_dependencies(map_publisher_node ${dependencies})
+target_link_libraries(map_publisher_node ${PROJECT_NAME} ${PCL_LIBRARIES})
 
 install(TARGETS
   ${PROJECT_NAME}
   ndt_node
+  map_publisher_node
   DESTINATION lib/${PROJECT_NAME}
 )
 
