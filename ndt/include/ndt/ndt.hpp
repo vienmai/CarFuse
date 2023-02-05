@@ -90,7 +90,7 @@ class NDTLocalization : public rclcpp::Node {
   double resolution_;
   double stepsize_;
   double epsilon_;
-  size_t maxiters_;
+  int maxiters_;
   double leafsize_;
 };
 };  // namespace localization
