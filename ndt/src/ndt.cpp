@@ -49,7 +49,7 @@ NDTLocalization::NDTLocalization() : Node("ndt"), tf_buffer_() {
 };
 
 void NDTLocalization::initialize_parameters() {
-  // NDT
+  // NDT Matcher
   declare_parameter("resolution", resolution_);
   declare_parameter("stepsize", stepsize_);
   declare_parameter("epsilon", epsilon_);
@@ -100,7 +100,7 @@ void NDTLocalization::scan_callback(
   );
 
   // Convert the cloud message to a point cloud
-  auto input_cloud = std::make_shared < pcl::PointCloud<pcl::PointXYZ>();
+  auto input_cloud = std::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
   pcl::fromROSMsg(*pcd_msg, *input_cloud);
   RCLCPP_INFO(get_logger(), "Converted pcd msg to pcd.");
 
@@ -109,7 +109,7 @@ void NDTLocalization::scan_callback(
   RCLCPP_INFO(get_logger(), "PCD transformed to vehicle frame.");
 
   // Filtering input scan to reduce size
-  auto filtered_cloud = std::make_shared < pcl::PointCloud<pcl::PointXYZ>();
+  auto filtered_cloud = std::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
   pcl::ApproximateVoxelGrid<pcl::PointXYZ> voxel_filter;
   voxel_filter.setLeafSize(leafsize_, leafsize_, leafsize_);
   voxel_filter.setInputCloud(input_cloud);
@@ -117,7 +117,7 @@ void NDTLocalization::scan_callback(
   RCLCPP_INFO(get_logger(), "Finished filtering the cloud.");
 
   // Perform scan matching with NDT
-  auto output_cloud = std::make_shared < pcl::PointCloud<pcl::PointXYZ>();
+  auto output_cloud = std::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
   ndt_.setInputSource(filtered_cloud);
   ndt_.setInputTarget(map_ptr_);
   ndt_.align(*output_cloud, current_pose_);
