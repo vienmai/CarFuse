@@ -1,12 +1,12 @@
-ndt_locator:
+/ndt:
   ros__parameters:
-    # NDT parameters
-    ndt:
-      epsilon: 0.01
-      stepsize: 0.1
-      resolution: 1.0
-      maxiters: 20
-      use_initial_guess: true
+    # NDT matcher
+    epsilon: 0.01
+    stepsize: 0.1
+    resolution: 1.0
+    maxiters: 20
+    use_initial_guess: true
+    leafsize: 1.0
 
     # TF2 buffer size
     tf2_buffer_size: 10
@@ -21,13 +21,11 @@ ndt_locator:
     cloud_topic: "/cloud"
     tf_topic: "/tf"
 
-    # Visualization topics
-    viz_pose_topic: "/viz/pose"
-
     # Reference frames
     map_frame: "map"
     vehicle_frame: "base_link"
-    laser_frame: "laser"
+    laser_frame: "os_sensor"
 
-    # Map file
-    map_file: "maps/map.pcd"
+/map_publisher:
+  ros__parameters:
+    map_file: "/ros2_ws/install/ndt_locator/share/ndt_locator/maps/court_yard_map.pcd"
