@@ -8,7 +8,7 @@ using namespace localization;
 int main(int argc, char *argv[]) {
   rclcpp::init(argc, argv);
 
-  // Create an instance of the NDTLocalization class and a MapPublisher node
+  // Create an instance of the NDTLocalization class
   auto ndt_node = std::make_shared<NDTLocalization>();
 
   // Create a publisher for the estimated poses
