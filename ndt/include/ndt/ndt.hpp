@@ -32,6 +32,7 @@ class NDTLocalization : public rclcpp::Node {
   void initial_pose_callback(
       const geometry_msgs::msg::PoseStamped::SharedPtr initial_pose_msg
   );
+  void initialize_parameters();
 
   /** @brief Publish the transformation between the laser and the map.
    * @param pose: The pose of the laser in the map frame
@@ -83,6 +84,14 @@ class NDTLocalization : public rclcpp::Node {
   std::vector<geometry_msgs::msg::PoseStamped> pose_vec_;
 
   std::string map_frame_, vehicle_frame_, laser_frame_, initial_pose_frame_;
+  std::string scan_topic_, initial_pose_topic_, map_topic_, pose_topic_,
+      cloud_topic_, tf_topic_;
+
+  double resolution_;
+  double stepsize_;
+  double epsilon_;
+  size_t maxiters_;
+  double leafsize_;
 };
 };  // namespace localization
 

@@ -2,39 +2,14 @@
 
 namespace localization {
 NDTLocalization::NDTLocalization() : Node("ndt"), tf_buffer_() {
-  // NDT parameters
-  double resolution = this->get_parameter_or("resolution", 1.0);
-  double stepsize = this->get_parameter_or("stepsize", 0.1);
-  double epsilon = this->get_parameter_or("epsilon", 0.1);
-  size_t maxiters = this->get_parameter_or("maxiters", 20);
-
-  // Reference Frames
-  map_frame_ = this->get_parameter_or("map_frame", std::string("map"));
-  vehicle_frame_ =
-      this->get_parameter_or("vehicle_frame", std::string("base_link"));
-  laser_frame_ = this->get_parameter_or("laser_frame", std::string("laser"));
-  initial_pose_frame_ =
-      this->get_parameter_or("initial_pose_frame", std::string("GNSS"));
-
-  // Topics
-  std::string scan_topic =
-      this->get_parameter_or("scan_topic", std::string("/scan"));
-  std::string initial_pose_topic = this->get_parameter_or(
-      "initial_pose_topic", std::string("/initial_pose")
-  );
-  std::string map_topic =
-      this->get_parameter_or("map_topic", std::string("/map"));
-  std::string pose_topic =
-      this->get_parameter_or("pose_topic", std::string("/pose"));
-  std::string cloud_topic =
-      this->get_parameter_or("cloud_topic", std::string("/cloud"));
-  std::string tf_topic = this->get_parameter_or("tf_topic", std::string("/tf"));
+  // Initialize necessary parameters
+  initialize_parameters();
 
   // Initialize the NDT scan matcher
-  ndt_.setTransformationEpsilon(epsilon);
-  ndt_.setStepSize(stepsize);
-  ndt_.setResolution(resolution);
-  ndt_.setMaximumIterations(maxiters);
+  ndt_.setTransformationEpsilon(epsilon_);
+  ndt_.setStepSize(stepsize_);
+  ndt_.setResolution(resolution_);
+  ndt_.setMaximumIterations(maxiters_);
 
   // Initialize the tf2 buffer and listener
   tf_broadcaster_ = std::make_shared<tf2_ros::TransformBroadcaster>(*this);
@@ -42,18 +17,18 @@ NDTLocalization::NDTLocalization() : Node("ndt"), tf_buffer_() {
 
   // Initialize the publisher for the current pose
   pose_pub_ = this->create_publisher<geometry_msgs::msg::PoseStamped>(
-      pose_topic, rclcpp::QoS(rclcpp::KeepLast(10))
+      pose_topic_, rclcpp::QoS(rclcpp::KeepLast(10))
   );
 
   // Initialize the publisher for the transformed point cloud
   cloud_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
-      cloud_topic, rclcpp::QoS(rclcpp::KeepLast(10))
+      cloud_topic_, rclcpp::QoS(rclcpp::KeepLast(10))
   );
 
   // Initialize the subscriber for the initial pose
   initial_pose_sub_ =
       this->create_subscription<geometry_msgs::msg::PoseStamped>(
-          initial_pose_topic, rclcpp::QoS(rclcpp::KeepLast(1)),
+          initial_pose_topic_, rclcpp::QoS(rclcpp::KeepLast(1)),
           std::bind(
               &NDTLocalization::initial_pose_callback, this,
               std::placeholders::_1
@@ -62,16 +37,57 @@ NDTLocalization::NDTLocalization() : Node("ndt"), tf_buffer_() {
 
   // Initialize the subscriber for the lidar scan
   scan_sub_ = this->create_subscription<sensor_msgs::msg::PointCloud2>(
-      scan_topic, rclcpp::QoS(rclcpp::KeepLast(10)),
+      scan_topic_, rclcpp::QoS(rclcpp::KeepLast(10)),
       std::bind(&NDTLocalization::scan_callback, this, std::placeholders::_1)
   );
 
   // Initialize the subscriber for the map
   map_sub_ = this->create_subscription<sensor_msgs::msg::PointCloud2>(
-      map_topic, rclcpp::QoS(rclcpp::KeepLast(1)),
+      map_topic_, rclcpp::QoS(rclcpp::KeepLast(1)),
       std::bind(&NDTLocalization::map_callback, this, std::placeholders::_1)
   );
 };
+
+void NDTLocalization::initialize_parameters() {
+  // NDT
+  declare_parameter("resolution", resolution_);
+  declare_parameter("stepsize", stepsize_);
+  declare_parameter("epsilon", epsilon_);
+  declare_parameter("maxiters", maxiters_);
+  declare_parameter("leafsize", leafsize_);
+
+  get_parameter("resolution", resolution_);
+  get_parameter("stepsize", stepsize_);
+  get_parameter("epsilon", epsilon_);
+  get_parameter("maxiters", maxiters_);
+  get_parameter("leafsize", leafsize_);
+
+  // Reference Frames
+  declare_parameter("map_frame", map_frame_);
+  declare_parameter("vehicle_frame", vehicle_frame_);
+  declare_parameter("laser_frame", laser_frame_);
+  declare_parameter("initial_pose_frame", initial_pose_frame_);
+
+  get_parameter("map_frame", map_frame_);
+  get_parameter("vehicle_frame", vehicle_frame_);
+  get_parameter("laser_frame", laser_frame_);
+  get_parameter("initial_pose_frame", initial_pose_frame_);
+
+  // Topics
+  declare_parameter("scan_topic", scan_topic_);
+  declare_parameter("initial_pose_topic", initial_pose_topic_);
+  declare_parameter("map_topic", map_topic_);
+  declare_parameter("pose_topic", pose_topic_);
+  declare_parameter("cloud_topic", cloud_topic_);
+  declare_parameter("tf_topic", tf_topic_);
+
+  get_parameter("scan_topic", scan_topic_);
+  get_parameter("initial_pose_topic", initial_pose_topic_);
+  get_parameter("map_topic", map_topic_);
+  get_parameter("pose_topic", pose_topic_);
+  get_parameter("cloud_topic", cloud_topic_);
+  get_parameter("tf_topic", tf_topic_);
+}
 
 void NDTLocalization::scan_callback(
     const sensor_msgs::msg::PointCloud2::SharedPtr pcd_msg
@@ -79,14 +95,12 @@ void NDTLocalization::scan_callback(
   RCLCPP_INFO(get_logger(), "Start scan callback.");
   RCLCPP_INFO(
       get_logger(),
-      "Received PointCloud2 message with height: %d, width: %d, and "
-      "%ld channels.",
+      "Received PCD message: height, width, channels = (%d, %d, %ld)",
       pcd_msg->height, pcd_msg->width, pcd_msg->fields.size()
   );
 
   // Convert the cloud message to a point cloud
-  pcl::PointCloud<pcl::PointXYZ>::Ptr
-      input_cloud(new pcl::PointCloud<pcl::PointXYZ>);
+  auto input_cloud = std::make_shared < pcl::PointCloud<pcl::PointXYZ>();
   pcl::fromROSMsg(*pcd_msg, *input_cloud);
   RCLCPP_INFO(get_logger(), "Converted pcd msg to pcd.");
 
@@ -95,16 +109,15 @@ void NDTLocalization::scan_callback(
   RCLCPP_INFO(get_logger(), "PCD transformed to vehicle frame.");
 
   // Filtering input scan to reduce size
-  pcl::PointCloud<pcl::PointXYZ>::Ptr
-      filtered_cloud(new pcl::PointCloud<pcl::PointXYZ>);
+  auto filtered_cloud = std::make_shared < pcl::PointCloud<pcl::PointXYZ>();
   pcl::ApproximateVoxelGrid<pcl::PointXYZ> voxel_filter;
-  voxel_filter.setLeafSize(0.2, 0.2, 0.2);
+  voxel_filter.setLeafSize(leafsize_, leafsize_, leafsize_);
   voxel_filter.setInputCloud(input_cloud);
   voxel_filter.filter(*filtered_cloud);
   RCLCPP_INFO(get_logger(), "Finished filtering the cloud.");
 
   // Perform scan matching with NDT
-  pcl::PointCloud<PointT>::Ptr output_cloud(new pcl::PointCloud<PointT>);
+  auto output_cloud = std::make_shared < pcl::PointCloud<pcl::PointXYZ>();
   ndt_.setInputSource(filtered_cloud);
   ndt_.setInputTarget(map_ptr_);
   ndt_.align(*output_cloud, current_pose_);
