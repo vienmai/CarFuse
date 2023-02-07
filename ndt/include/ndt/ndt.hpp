@@ -10,6 +10,7 @@
 #include <tf2_ros/transform_listener.h>
 
 #include <geometry_msgs/msg/pose_stamped.hpp>
+#include <nav_msgs/msg/path.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/laser_scan.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
@@ -23,9 +24,6 @@ class NDTLocalization : public rclcpp::Node {
  public:
   NDTLocalization();
 
-  /** @brief Vector of estimated poses.*/
-  std::vector<geometry_msgs::msg::PoseStamped> get_estimated_poses() const;
-
  private:
   void scan_callback(const sensor_msgs::msg::PointCloud2::SharedPtr scan_msg);
   void map_callback(const sensor_msgs::msg::PointCloud2::SharedPtr map_msg);
@@ -35,10 +33,14 @@ class NDTLocalization : public rclcpp::Node {
   void initialize_parameters();
 
   /** @brief Publish the transformation between the laser and the map.
-   * @param pose: The pose of the laser in the map frame
-   * @param stamp: The time at which this pose was calculated. Default: 0.
+   * @param pose: The estimated pose in the map frame
    */
   void publish_transform(geometry_msgs::msg::PoseStamped &pose_msg) const;
+
+  /** @brief Publish the estimated path.
+   * @param pose_msg: The estimated pose in the map frame
+   */
+  void publish_path(geometry_msgs::msg::PoseStamped &pose_msg);
 
   /** @brief Publish the point cloud.
    * @param cloud: The cloud to be published.
@@ -46,7 +48,7 @@ class NDTLocalization : public rclcpp::Node {
    */
   void publish_cloud(
       const pcl::PointCloud<PointT>::Ptr &cloud, const rclcpp::Time &stamp
-  ) const;
+  );
 
   /** @brief Transform the input point cloud to the target frame
    * @param cloud_in: The input point cloud.
@@ -58,6 +60,10 @@ class NDTLocalization : public rclcpp::Node {
       pcl::PointCloud<PointT> &cloud_out, const std::string &target_frame
   ) const;
 
+  Eigen::Matrix4f pose_stamped_to_eigen(
+      const geometry_msgs::msg::PoseStamped &pose_msg
+  ) const;
+
   /** @brief Transform tf2 stamped to Eigen::Matrix4f.
    * @param tf_stamped: The input transform stamped
    */
@@ -67,6 +73,7 @@ class NDTLocalization : public rclcpp::Node {
 
   rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr pose_pub_;
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr cloud_pub_;
+  rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr path_pub_;
 
   rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr scan_sub_;
   rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr map_sub_;
@@ -81,11 +88,11 @@ class NDTLocalization : public rclcpp::Node {
   tf2::BufferCore tf_buffer_;
 
   Eigen::Matrix4f current_pose_;
-  std::vector<geometry_msgs::msg::PoseStamped> pose_vec_;
+  nav_msgs::msg::Path path_;
 
   std::string map_frame_, vehicle_frame_, laser_frame_, initial_pose_frame_;
   std::string scan_topic_, initial_pose_topic_, map_topic_, pose_topic_,
-      cloud_topic_, tf_topic_;
+      path_topic_, cloud_topic_, tf_topic_;
 
   double resolution_;
   double stepsize_;

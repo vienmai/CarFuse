@@ -20,9 +20,14 @@ NDTLocalization::NDTLocalization() : Node("ndt"), tf_buffer_() {
       pose_topic_, rclcpp::QoS(rclcpp::KeepLast(10))
   );
 
-  // Initialize the publisher for the transformed point cloud
+  // Initialize the publisher for the aligned point cloud in map frame
   cloud_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
       cloud_topic_, rclcpp::QoS(rclcpp::KeepLast(10))
+  );
+
+  // Initialize the publisher for the estimated path
+  path_pub_ = this->create_publisher<nav_msgs::msg::Path>(
+      path_topic_, rclcpp::QoS(rclcpp::KeepLast(10))
   );
 
   // Initialize the subscriber for the initial pose
@@ -78,6 +83,7 @@ void NDTLocalization::initialize_parameters() {
   declare_parameter("initial_pose_topic", initial_pose_topic_);
   declare_parameter("map_topic", map_topic_);
   declare_parameter("pose_topic", pose_topic_);
+  declare_parameter("path_topic", path_topic_);
   declare_parameter("cloud_topic", cloud_topic_);
   declare_parameter("tf_topic", tf_topic_);
 
@@ -85,6 +91,7 @@ void NDTLocalization::initialize_parameters() {
   get_parameter("initial_pose_topic", initial_pose_topic_);
   get_parameter("map_topic", map_topic_);
   get_parameter("pose_topic", pose_topic_);
+  get_parameter("path_topic", path_topic_);
   get_parameter("cloud_topic", cloud_topic_);
   get_parameter("tf_topic", tf_topic_);
 }
@@ -114,15 +121,14 @@ void NDTLocalization::scan_callback(
   voxel_filter.setLeafSize(leafsize_, leafsize_, leafsize_);
   voxel_filter.setInputCloud(input_cloud);
   voxel_filter.filter(*filtered_cloud);
-  RCLCPP_INFO(get_logger(), "Finished filtering the cloud.");
+  RCLCPP_INFO(get_logger(), "Finished filtering the input cloud.");
 
   // Perform scan matching with NDT
   auto output_cloud = std::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
   ndt_.setInputSource(filtered_cloud);
   ndt_.setInputTarget(map_ptr_);
   ndt_.align(*output_cloud, current_pose_);
-
-  RCLCPP_INFO(get_logger(), "Finished NDT scan matching.");
+  RCLCPP_INFO(get_logger(), "Finished ndt. Status: %d", ndt_.hasConverged());
 
   // Update the current pose
   current_pose_ = ndt_.getFinalTransformation();
@@ -145,7 +151,8 @@ void NDTLocalization::scan_callback(
   // Publish the results
   pose_pub_->publish(pose_msg);
   publish_transform(pose_msg);
-  pose_vec_.push_back(pose_msg);
+  publish_path(pose_msg);
+  publish_cloud(output_cloud, pcd_msg->header.stamp);
 
   RCLCPP_INFO(get_logger(), "End scan callback.");
 }
@@ -172,7 +179,7 @@ void NDTLocalization::initial_pose_callback(
 
   if (initpose_frame != map_frame_) {
     RCLCPP_INFO(
-        get_logger(), "Transform initpose to %s frame", map_frame_.c_str()
+        get_logger(), "Transform initial pose to %s frame", map_frame_.c_str()
     );
     geometry_msgs::msg::TransformStamped tf_stamped;
     try {
@@ -187,7 +194,9 @@ void NDTLocalization::initial_pose_callback(
   }
 
   // Publish the initial pose in map frame
+  current_pose_ = pose_stamped_to_eigen(*initial_pose_msg);
   pose_pub_->publish(*initial_pose_msg);
+  publish_path(*initial_pose_msg);
 
   RCLCPP_INFO(get_logger(), "End initial pose callback.");
 }
@@ -228,20 +237,31 @@ void NDTLocalization::publish_transform(
   tf_broadcaster_->sendTransform(tf_msg);
 }
 
-// void publish_cloud(
-//   const pcl::PointCloud<PointT>::Ptr& cloud,
-//   const rclcpp::Time& stamp
-// ) const {
-//     sensor_msgs::msg::PointCloud2 cloud_msg;
-//     pcl::toROSMsg(*cloud, cloud_msg);
-//     cloud_msg.header.stamp = stamp;
-//     cloud_pub_->publish(cloud_msg);
-// }
+void NDTLocalization::publish_cloud(
+    const pcl::PointCloud<pcl::PointXYZ>::Ptr &cloud, const rclcpp::Time &stamp
+) {
+  sensor_msgs::msg::PointCloud2 cloud_msg;
+  pcl::toROSMsg(*cloud, cloud_msg);
+  cloud_msg.header.frame_id = map_frame_;
+  cloud_msg.header.stamp = stamp;
+  cloud_pub_->publish(cloud_msg);
+}
 
-std::vector<geometry_msgs::msg::PoseStamped>
-NDTLocalization::get_estimated_poses() const {
-  return pose_vec_;
-};
+void NDTLocalization::publish_path(geometry_msgs::msg::PoseStamped &pose_msg) {
+  path_.header.frame_id = pose_msg.header.frame_id;
+  path_.poses.push_back(pose_msg);
+  path_pub_->publish(path_);
+  RCLCPP_INFO(get_logger(), "Path published to %s topic!", path_topic_.c_str());
+}
+
+Eigen::Matrix4f NDTLocalization::pose_stamped_to_eigen(
+    const geometry_msgs::msg::PoseStamped &pose_msg
+) const {
+  Eigen::Affine3d affine;
+  tf2::fromMsg(pose_msg.pose, affine);
+  Eigen::Matrix4f eigen_matrix = affine.matrix().cast<float>();
+  return eigen_matrix;
+}
 
 Eigen::Matrix4f NDTLocalization::tf_stamped_to_eigen(
     const geometry_msgs::msg::TransformStamped &tf_stamped
