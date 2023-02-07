@@ -42,9 +42,11 @@ void MapPublisher::pose_callback(
     box_filter.filter(*submap_ptr);
 
     sensor_msgs::msg::PointCloud2 submap_msg;
-    submap_msg.header.frame_id = map_frame_;
     pcl::toROSMsg(*submap_ptr, submap_msg);
-    RCLCPP_INFO(get_logger(), "Map frame: %s", map_frame_.c_str());
+    submap_msg.header.frame_id = map_frame_;
+    RCLCPP_INFO(
+        get_logger(), "Map frame: %s", submap_msg.header.frame_id.c_str()
+    );
 
     if (submap_msg.width > 0) {
       map_pub_->publish(submap_msg);
@@ -68,9 +70,9 @@ void MapPublisher::load_map(const std::string &path) {
 
   // Convert the PointCloud to a PointCloud2 message
   sensor_msgs::msg::PointCloud2 map_msg;
-  map_msg.header.frame_id = map_frame_;
   pcl::toROSMsg(*map_cloud, map_msg);
-  RCLCPP_INFO(get_logger(), "Map frame: %s", map_frame_.c_str());
+  map_msg.header.frame_id = map_frame_;
+  RCLCPP_INFO(get_logger(), "Map frame: %s", map_msg.header.frame_id.c_str());
 
   // Set the pointer to the global map
   map_ptr_ = map_cloud;
