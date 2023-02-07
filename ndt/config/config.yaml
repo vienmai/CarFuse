@@ -1,9 +1,17 @@
+/**:
+  ros__parameters:
+    map_topic: "/map"
+    map_frame: "map"
+    pose_topic: "/pose"
+
+    use_sim_time: true
+
 /ndt:
   ros__parameters:
     # NDT matcher
-    epsilon: 0.01
+    epsilon: 0.05
     stepsize: 0.1
-    resolution: 1.0
+    resolution: 3.0
     maxiters: 20
     use_initial_guess: true
     leafsize: 1.0
@@ -14,18 +22,20 @@
     # Subscriber topics
     scan_topic: "/scan"
     initial_pose_topic: "/initial_pose"
-    map_topic: "/map"
 
     # Publisher topics
-    pose_topic: "/pose"
     cloud_topic: "/cloud"
     tf_topic: "/tf"
+    path_topic: "/rviz/path"
 
     # Reference frames
-    map_frame: "map"
     vehicle_frame: "base_link"
     laser_frame: "os_sensor"
 
 /map_publisher:
   ros__parameters:
     map_file: "/ros2_ws/install/ndt_locator/share/ndt_locator/maps/court_yard_map.pcd"
+
+    map_update_threshold: 25.0
+    submap_size_xy: 50.0
+    submap_size_z: 20.0
