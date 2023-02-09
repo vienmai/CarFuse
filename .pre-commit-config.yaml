@@ -6,6 +6,8 @@ repos:
     - id: trailing-whitespace
     - id: check-added-large-files
     - id: check-executables-have-shebangs
+    - id: check-merge-conflict
+    - id: detect-private-key
 
   - repo: local
     hooks:

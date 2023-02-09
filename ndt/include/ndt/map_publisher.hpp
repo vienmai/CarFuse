@@ -11,18 +11,22 @@
 #include <tf2_eigen/tf2_eigen.hpp>
 
 class MapPublisher : public rclcpp::Node {
+  using PointT = pcl::PointXYZ;
+  using PointPtr = pcl::PointCloud<pcl::PointXYZ>::Ptr;
+
  public:
   MapPublisher();
+  void pose_callback(const geometry_msgs::msg::PoseStamped::SharedPtr pose_msg);
 
  private:
-  void pose_callback(const geometry_msgs::msg::PoseStamped::SharedPtr pose_msg);
-  void load_map(const std::string &path);
   void initialize_parameters();
+  void load_and_publish_map(const std::string& path);
+  PointPtr create_submap(Eigen::Vector3d& curr_position) const;
 
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr map_pub_;
   rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr pose_sub_;
 
-  pcl::PointCloud<pcl::PointXYZ>::Ptr map_ptr_;
+  PointPtr map_ptr_;
 
   std::string map_file_;
   std::string map_frame_;
@@ -31,10 +35,9 @@ class MapPublisher : public rclcpp::Node {
   Eigen::Vector3d prev_position_;
 
   bool first_submap_{true};
-  double travel_dist_{0};
-  double map_update_threshold_;
-
-  double submap_size_xy_, submap_size_z_;
+  float travel_dist_{0};
+  float map_update_threshold_;
+  float submap_size_xy_, submap_size_z_;
 };
 
 #endif

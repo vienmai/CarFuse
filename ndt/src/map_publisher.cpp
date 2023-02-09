@@ -4,7 +4,7 @@ MapPublisher::MapPublisher() : Node("map_publisher") {
   initialize_parameters();
 
   map_pub_ = create_publisher<sensor_msgs::msg::PointCloud2>(map_topic_, 10);
-  this->load_map(map_file_);
+  this->load_and_publish_map(map_file_);
 
   pose_sub_ = create_subscription<geometry_msgs::msg::PoseStamped>(
       pose_topic_, 10,
@@ -24,45 +24,29 @@ void MapPublisher::pose_callback(
     RCLCPP_INFO(get_logger(), "Distance traveled: %f", travel_dist_);
   }
 
-  if (travel_dist_ > map_update_threshold_ || first_submap_) {
-    pcl::CropBox<pcl::PointXYZ> box_filter;
-    box_filter.setMin(Eigen::Vector4f(
-        curr_position.x() - submap_size_xy_,
-        curr_position.y() - submap_size_xy_, curr_position.z() - submap_size_z_,
-        1.0
-    ));
-    box_filter.setMax(Eigen::Vector4f(
-        curr_position.x() + submap_size_xy_,
-        curr_position.y() + submap_size_xy_, curr_position.z() + submap_size_z_,
-        1.0
-    ));
-
-    auto submap_ptr = std::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
-    box_filter.setInputCloud(map_ptr_);
-    box_filter.filter(*submap_ptr);
+  if (first_submap_ || travel_dist_ > map_update_threshold_) {
+    auto submap_ptr = create_submap(curr_position);
 
     sensor_msgs::msg::PointCloud2 submap_msg;
     pcl::toROSMsg(*submap_ptr, submap_msg);
     submap_msg.header.frame_id = map_frame_;
-    RCLCPP_INFO(
-        get_logger(), "Map frame: %s", submap_msg.header.frame_id.c_str()
-    );
 
     if (submap_msg.width > 0) {
       map_pub_->publish(submap_msg);
-      RCLCPP_INFO(get_logger(), "New submap publsihed!");
+      RCLCPP_INFO(
+          get_logger(), "New submap: %ld points", submap_msg.fields.size()
+      );
       travel_dist_ = 0;
     }
+
     first_submap_ = false;
   }
-
   prev_position_ = curr_position;
 }
 
-void MapPublisher::load_map(const std::string &path) {
-  auto map_cloud = std::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
-
+void MapPublisher::load_and_publish_map(const std::string& path) {
   // Load map file
+  auto map_cloud = std::make_shared<pcl::PointCloud<PointT>>();
   if (pcl::io::loadPCDFile(path, *map_cloud) == -1) {
     RCLCPP_ERROR(get_logger(), "Failed to read map file %s", path.c_str());
     return;
@@ -72,14 +56,34 @@ void MapPublisher::load_map(const std::string &path) {
   sensor_msgs::msg::PointCloud2 map_msg;
   pcl::toROSMsg(*map_cloud, map_msg);
   map_msg.header.frame_id = map_frame_;
-  RCLCPP_INFO(get_logger(), "Map frame: %s", map_msg.header.frame_id.c_str());
 
   // Set the pointer to the global map
   map_ptr_ = map_cloud;
+  RCLCPP_INFO(get_logger(), "Global map: %ld points", map_ptr_->points.size());
 
   // Publish the map message
   map_pub_->publish(map_msg);
   RCLCPP_INFO(get_logger(), "Published the full map!");
+}
+
+MapPublisher::PointPtr MapPublisher::create_submap(
+    Eigen::Vector3d& curr_position
+) const {
+  pcl::CropBox<pcl::PointXYZ> box_filter;
+  box_filter.setMin(Eigen::Vector4f(
+      curr_position.x() - submap_size_xy_, curr_position.y() - submap_size_xy_,
+      curr_position.z() - submap_size_z_, 1.0
+  ));
+  box_filter.setMax(Eigen::Vector4f(
+      curr_position.x() + submap_size_xy_, curr_position.y() + submap_size_xy_,
+      curr_position.z() + submap_size_z_, 1.0
+  ));
+
+  auto submap_ptr = std::make_shared<pcl::PointCloud<PointT>>();
+  box_filter.setInputCloud(map_ptr_);
+  box_filter.filter(*submap_ptr);
+
+  return submap_ptr;
 }
 
 void MapPublisher::initialize_parameters() {
@@ -91,11 +95,9 @@ void MapPublisher::initialize_parameters() {
 
   declare_parameter("map_frame", map_frame_);
   get_parameter("map_frame", map_frame_);
-  RCLCPP_INFO(get_logger(), "Map frame: %s", map_frame_.c_str());
 
   declare_parameter("map_file", map_file_);
   get_parameter("map_file", map_file_);
-  RCLCPP_INFO(get_logger(), "Map file: %s", map_file_.c_str());
 
   declare_parameter("map_update_threshold", map_update_threshold_);
   declare_parameter("submap_size_xy", submap_size_xy_);
@@ -105,6 +107,8 @@ void MapPublisher::initialize_parameters() {
   get_parameter("submap_size_xy", submap_size_xy_);
   get_parameter("submap_size_z", submap_size_z_);
 
+  RCLCPP_INFO(get_logger(), "Map file: %s", map_file_.c_str());
+  RCLCPP_INFO(get_logger(), "Map frame: %s", map_frame_.c_str());
   RCLCPP_INFO(get_logger(), "Map update threshold: %f", map_update_threshold_);
   RCLCPP_INFO(get_logger(), "submap_size_xy: %f", submap_size_xy_);
   RCLCPP_INFO(get_logger(), "submap_size_z: %f", submap_size_z_);
