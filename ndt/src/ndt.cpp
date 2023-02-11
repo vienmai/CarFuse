@@ -2,35 +2,29 @@
 
 namespace localization {
 NDTLocalization::NDTLocalization() : Node("ndt"), tf_buffer_() {
-  // Initialize necessary parameters
+  // Initialize parameters
   initialize_parameters();
 
-  // Initialize the NDT scan matcher
-  ndt_.setTransformationEpsilon(epsilon_);
-  ndt_.setStepSize(stepsize_);
-  ndt_.setResolution(resolution_);
-  ndt_.setMaximumIterations(maxiters_);
-
-  // Initialize the tf2 buffer and listener
+  // TF2 buffer and listener
   tf_broadcaster_ = std::make_shared<tf2_ros::TransformBroadcaster>(*this);
   tf_listener_ = std::make_shared<tf2_ros::TransformListener>(tf_buffer_);
 
-  // Initialize the publisher for the current pose
+  // Publisher for the current pose
   pose_pub_ = this->create_publisher<geometry_msgs::msg::PoseStamped>(
       pose_topic_, rclcpp::QoS(rclcpp::KeepLast(10))
   );
 
-  // Initialize the publisher for the aligned point cloud in map frame
+  // Publisher for the aligned point cloud in map frame
   cloud_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
       cloud_topic_, rclcpp::QoS(rclcpp::KeepLast(10))
   );
 
-  // Initialize the publisher for the estimated path
+  // Publisher for the estimated path
   path_pub_ = this->create_publisher<nav_msgs::msg::Path>(
       path_topic_, rclcpp::QoS(rclcpp::KeepLast(10))
   );
 
-  // Initialize the subscriber for the initial pose
+  // Subscriber for the initial pose
   initial_pose_sub_ =
       this->create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>(
           initial_pose_topic_, rclcpp::QoS(rclcpp::KeepLast(1)),
@@ -295,6 +289,12 @@ void NDTLocalization::initialize_parameters() {
   get_parameter("path_topic", path_topic_);
   get_parameter("cloud_topic", cloud_topic_);
   get_parameter("tf_topic", tf_topic_);
+
+  // NDT scan matcher
+  ndt_.setTransformationEpsilon(epsilon_);
+  ndt_.setStepSize(stepsize_);
+  ndt_.setResolution(resolution_);
+  ndt_.setMaximumIterations(maxiters_);
 }
 
 };  // namespace localization
