@@ -32,7 +32,7 @@ NDTLocalization::NDTLocalization() : Node("ndt"), tf_buffer_() {
 
   // Initialize the subscriber for the initial pose
   initial_pose_sub_ =
-      this->create_subscription<geometry_msgs::msg::PoseStamped>(
+      this->create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>(
           initial_pose_topic_, rclcpp::QoS(rclcpp::KeepLast(1)),
           std::bind(
               &NDTLocalization::initial_pose_callback, this,
@@ -53,78 +53,34 @@ NDTLocalization::NDTLocalization() : Node("ndt"), tf_buffer_() {
   );
 };
 
-void NDTLocalization::initialize_parameters() {
-  // NDT Matcher
-  declare_parameter("resolution", resolution_);
-  declare_parameter("stepsize", stepsize_);
-  declare_parameter("epsilon", epsilon_);
-  declare_parameter("maxiters", maxiters_);
-  declare_parameter("leafsize", leafsize_);
-
-  get_parameter("resolution", resolution_);
-  get_parameter("stepsize", stepsize_);
-  get_parameter("epsilon", epsilon_);
-  get_parameter("maxiters", maxiters_);
-  get_parameter("leafsize", leafsize_);
-
-  // Reference Frames
-  declare_parameter("map_frame", map_frame_);
-  declare_parameter("vehicle_frame", vehicle_frame_);
-  declare_parameter("laser_frame", laser_frame_);
-  declare_parameter("initial_pose_frame", initial_pose_frame_);
-
-  get_parameter("map_frame", map_frame_);
-  get_parameter("vehicle_frame", vehicle_frame_);
-  get_parameter("laser_frame", laser_frame_);
-  get_parameter("initial_pose_frame", initial_pose_frame_);
-
-  // Topics
-  declare_parameter("scan_topic", scan_topic_);
-  declare_parameter("initial_pose_topic", initial_pose_topic_);
-  declare_parameter("map_topic", map_topic_);
-  declare_parameter("pose_topic", pose_topic_);
-  declare_parameter("path_topic", path_topic_);
-  declare_parameter("cloud_topic", cloud_topic_);
-  declare_parameter("tf_topic", tf_topic_);
-
-  get_parameter("scan_topic", scan_topic_);
-  get_parameter("initial_pose_topic", initial_pose_topic_);
-  get_parameter("map_topic", map_topic_);
-  get_parameter("pose_topic", pose_topic_);
-  get_parameter("path_topic", path_topic_);
-  get_parameter("cloud_topic", cloud_topic_);
-  get_parameter("tf_topic", tf_topic_);
-}
-
 void NDTLocalization::scan_callback(
     const sensor_msgs::msg::PointCloud2::SharedPtr pcd_msg
 ) {
   RCLCPP_INFO(get_logger(), "Start scan callback.");
-  RCLCPP_INFO(
-      get_logger(),
-      "Received PCD message: height, width, channels = (%d, %d, %ld)",
-      pcd_msg->height, pcd_msg->width, pcd_msg->fields.size()
-  );
 
   // Convert the cloud message to a point cloud
-  auto input_cloud = std::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
+  auto input_cloud = std::make_shared<PointCloudT>();
   pcl::fromROSMsg(*pcd_msg, *input_cloud);
   RCLCPP_INFO(get_logger(), "Converted pcd msg to pcd.");
 
   // Transform the cloud from sensor to vehicle frame
-  transform_pointcloud(*input_cloud, *input_cloud, vehicle_frame_);
+  transform_pointcloud(
+      *input_cloud, *input_cloud, vehicle_frame_, pcd_msg->header.frame_id
+  );
   RCLCPP_INFO(get_logger(), "PCD transformed to vehicle frame.");
 
   // Filtering input scan to reduce size
-  auto filtered_cloud = std::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
+  auto filtered_cloud = std::make_shared<PointCloudT>();
   pcl::ApproximateVoxelGrid<pcl::PointXYZ> voxel_filter;
   voxel_filter.setLeafSize(leafsize_, leafsize_, leafsize_);
   voxel_filter.setInputCloud(input_cloud);
   voxel_filter.filter(*filtered_cloud);
-  RCLCPP_INFO(get_logger(), "Finished filtering the input cloud.");
+  RCLCPP_INFO(
+      get_logger(), "Filtered cloud: %ld points", filtered_cloud->points.size()
+  );
 
   // Perform scan matching with NDT
-  auto output_cloud = std::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
+  auto output_cloud = std::make_shared<PointCloudT>();
   ndt_.setInputSource(filtered_cloud);
   ndt_.setInputTarget(map_ptr_);
   ndt_.align(*output_cloud, current_pose_);
@@ -163,19 +119,18 @@ void NDTLocalization::map_callback(
   RCLCPP_INFO(get_logger(), "Start map callback.");
   pcl::PCLPointCloud2 pcl_map;
   pcl_conversions::toPCL(*map_msg, pcl_map);
-  map_ptr_ = std::make_shared<pcl::PointCloud<PointT>>();
+  map_ptr_ = std::make_shared<PointCloudT>();
   pcl::fromPCLPointCloud2(pcl_map, *map_ptr_);
   RCLCPP_INFO(get_logger(), "End map callback.");
 }
 
 void NDTLocalization::initial_pose_callback(
-    const geometry_msgs::msg::PoseStamped::SharedPtr initial_pose_msg
+    const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr
+        initial_pose_msg
 ) {
   RCLCPP_INFO(get_logger(), "Start intitial pose callback.");
   auto initpose_frame = initial_pose_msg->header.frame_id;
-  RCLCPP_INFO(
-      get_logger(), "Initial pose frame id: %s", initpose_frame.c_str()
-  );
+  RCLCPP_INFO(get_logger(), "Initial pose frame: %s", initpose_frame.c_str());
 
   if (initpose_frame != map_frame_) {
     RCLCPP_INFO(
@@ -193,22 +148,26 @@ void NDTLocalization::initial_pose_callback(
     tf2::doTransform(*initial_pose_msg, *initial_pose_msg, tf_stamped);
   }
 
-  // Publish the initial pose in map frame
-  current_pose_ = pose_stamped_to_eigen(*initial_pose_msg);
-  pose_pub_->publish(*initial_pose_msg);
-  publish_path(*initial_pose_msg);
+  geometry_msgs::msg::PoseStamped pose_msg;
+  pose_msg.header.frame_id = map_frame_;
+  pose_msg.header.stamp = initial_pose_msg->header.stamp;
+  pose_msg.pose = initial_pose_msg->pose.pose;
+
+  current_pose_ = pose_stamped_to_eigen(pose_msg);
+  pose_pub_->publish(pose_msg);
+  publish_path(pose_msg);
 
   RCLCPP_INFO(get_logger(), "End initial pose callback.");
 }
 
 void NDTLocalization::transform_pointcloud(
-    const pcl::PointCloud<PointT> &cloud_in, pcl::PointCloud<PointT> &cloud_out,
-    const std::string &target_frame
+    const PointCloudT &cloud_in, PointCloudT &cloud_out,
+    const std::string &target_frame, const std::string &source_frame
 ) const {
   geometry_msgs::msg::TransformStamped tf_stamped;
   try {
     tf_stamped = tf_buffer_.lookupTransform(
-        target_frame, cloud_in.header.frame_id, tf2::TimePointZero
+        target_frame, source_frame, tf2::TimePointZero
     );
   } catch (tf2::TransformException &ex) {
     RCLCPP_WARN(get_logger(), "%s", ex.what());
@@ -238,7 +197,7 @@ void NDTLocalization::publish_transform(
 }
 
 void NDTLocalization::publish_cloud(
-    const pcl::PointCloud<pcl::PointXYZ>::Ptr &cloud, const rclcpp::Time &stamp
+    const PointCloudT::Ptr &cloud, const rclcpp::Time &stamp
 ) {
   sensor_msgs::msg::PointCloud2 cloud_msg;
   pcl::toROSMsg(*cloud, cloud_msg);
@@ -293,6 +252,49 @@ Eigen::Matrix4f NDTLocalization::tf_stamped_to_eigen(
   eigen_matrix(2, 3) = tf_stamped.transform.translation.z;
 
   return eigen_matrix;
+}
+
+void NDTLocalization::initialize_parameters() {
+  // NDT Matcher
+  declare_parameter("resolution", resolution_);
+  declare_parameter("stepsize", stepsize_);
+  declare_parameter("epsilon", epsilon_);
+  declare_parameter("maxiters", maxiters_);
+  declare_parameter("leafsize", leafsize_);
+
+  get_parameter("resolution", resolution_);
+  get_parameter("stepsize", stepsize_);
+  get_parameter("epsilon", epsilon_);
+  get_parameter("maxiters", maxiters_);
+  get_parameter("leafsize", leafsize_);
+
+  // Reference Frames
+  declare_parameter("map_frame", map_frame_);
+  declare_parameter("vehicle_frame", vehicle_frame_);
+  declare_parameter("laser_frame", laser_frame_);
+  declare_parameter("initial_pose_frame", initial_pose_frame_);
+
+  get_parameter("map_frame", map_frame_);
+  get_parameter("vehicle_frame", vehicle_frame_);
+  get_parameter("laser_frame", laser_frame_);
+  get_parameter("initial_pose_frame", initial_pose_frame_);
+
+  // Topics
+  declare_parameter("scan_topic", scan_topic_);
+  declare_parameter("initial_pose_topic", initial_pose_topic_);
+  declare_parameter("map_topic", map_topic_);
+  declare_parameter("pose_topic", pose_topic_);
+  declare_parameter("path_topic", path_topic_);
+  declare_parameter("cloud_topic", cloud_topic_);
+  declare_parameter("tf_topic", tf_topic_);
+
+  get_parameter("scan_topic", scan_topic_);
+  get_parameter("initial_pose_topic", initial_pose_topic_);
+  get_parameter("map_topic", map_topic_);
+  get_parameter("pose_topic", pose_topic_);
+  get_parameter("path_topic", path_topic_);
+  get_parameter("cloud_topic", cloud_topic_);
+  get_parameter("tf_topic", tf_topic_);
 }
 
 };  // namespace localization

@@ -10,6 +10,7 @@
 #include <tf2_ros/transform_listener.h>
 
 #include <geometry_msgs/msg/pose_stamped.hpp>
+#include <geometry_msgs/msg/pose_with_covariance_stamped.hpp>
 #include <nav_msgs/msg/path.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/laser_scan.hpp>
@@ -20,6 +21,7 @@
 namespace localization {
 class NDTLocalization : public rclcpp::Node {
   using PointT = pcl::PointXYZ;
+  using PointCloudT = pcl::PointCloud<pcl::PointXYZ>;
 
  public:
   NDTLocalization();
@@ -28,7 +30,8 @@ class NDTLocalization : public rclcpp::Node {
   void scan_callback(const sensor_msgs::msg::PointCloud2::SharedPtr scan_msg);
   void map_callback(const sensor_msgs::msg::PointCloud2::SharedPtr map_msg);
   void initial_pose_callback(
-      const geometry_msgs::msg::PoseStamped::SharedPtr initial_pose_msg
+      const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr
+          initial_pose_msg
   );
   void initialize_parameters();
 
@@ -46,9 +49,7 @@ class NDTLocalization : public rclcpp::Node {
    * @param cloud: The cloud to be published.
    * @param stamp: The time at which this pose was calculated. Default: 0.
    */
-  void publish_cloud(
-      const pcl::PointCloud<PointT>::Ptr &cloud, const rclcpp::Time &stamp
-  );
+  void publish_cloud(const PointCloudT::Ptr &cloud, const rclcpp::Time &stamp);
 
   /** @brief Transform the input point cloud to the target frame
    * @param cloud_in: The input point cloud.
@@ -56,8 +57,8 @@ class NDTLocalization : public rclcpp::Node {
    * @param target_frame: The name of the target frame.
    */
   void transform_pointcloud(
-      const pcl::PointCloud<PointT> &cloud_in,
-      pcl::PointCloud<PointT> &cloud_out, const std::string &target_frame
+      const PointCloudT &cloud_in, PointCloudT &cloud_out,
+      const std::string &target_frame, const std::string &source_frame
   ) const;
 
   Eigen::Matrix4f pose_stamped_to_eigen(
@@ -77,10 +78,10 @@ class NDTLocalization : public rclcpp::Node {
 
   rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr scan_sub_;
   rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr map_sub_;
-  rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr
+  rclcpp::Subscription<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr
       initial_pose_sub_;
 
-  pcl::PointCloud<PointT>::Ptr map_ptr_;
+  PointCloudT::Ptr map_ptr_;
   pcl::NormalDistributionsTransform<PointT, PointT> ndt_;
 
   std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
