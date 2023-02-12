@@ -21,24 +21,20 @@ void MapPublisher::pose_callback(
 
   if (!first_submap_) {
     travel_dist_ += (curr_position - prev_position_).norm();
-    RCLCPP_INFO(get_logger(), "Distance traveled: %f", travel_dist_);
   }
+  RCLCPP_INFO(get_logger(), "Distance traveled: %f", travel_dist_);
 
   if (first_submap_ || travel_dist_ > map_update_threshold_) {
     auto submap_ptr = create_submap(curr_position);
-
     sensor_msgs::msg::PointCloud2 submap_msg;
     pcl::toROSMsg(*submap_ptr, submap_msg);
     submap_msg.header.frame_id = map_frame_;
 
     if (submap_msg.width > 0) {
       map_pub_->publish(submap_msg);
-      RCLCPP_INFO(
-          get_logger(), "New submap: %ld points", submap_msg.fields.size()
-      );
+      RCLCPP_INFO(get_logger(), "New submap published!");
       travel_dist_ = 0;
     }
-
     first_submap_ = false;
   }
   prev_position_ = curr_position;
@@ -46,7 +42,7 @@ void MapPublisher::pose_callback(
 
 void MapPublisher::load_and_publish_map(const std::string& path) {
   // Load map file
-  auto map_cloud = std::make_shared<pcl::PointCloud<PointT>>();
+  auto map_cloud = std::make_shared<PointCloudT>();
   if (pcl::io::loadPCDFile(path, *map_cloud) == -1) {
     RCLCPP_ERROR(get_logger(), "Failed to read map file %s", path.c_str());
     return;
@@ -66,10 +62,10 @@ void MapPublisher::load_and_publish_map(const std::string& path) {
   RCLCPP_INFO(get_logger(), "Published the full map!");
 }
 
-MapPublisher::PointPtr MapPublisher::create_submap(
+MapPublisher::PointCloudPtr MapPublisher::create_submap(
     Eigen::Vector3d& curr_position
 ) const {
-  pcl::CropBox<pcl::PointXYZ> box_filter;
+  pcl::CropBox<PointT> box_filter;
   box_filter.setMin(Eigen::Vector4f(
       curr_position.x() - submap_size_xy_, curr_position.y() - submap_size_xy_,
       curr_position.z() - submap_size_z_, 1.0
@@ -79,9 +75,12 @@ MapPublisher::PointPtr MapPublisher::create_submap(
       curr_position.z() + submap_size_z_, 1.0
   ));
 
-  auto submap_ptr = std::make_shared<pcl::PointCloud<PointT>>();
+  auto submap_ptr = std::make_shared<PointCloudT>();
   box_filter.setInputCloud(map_ptr_);
   box_filter.filter(*submap_ptr);
+  RCLCPP_INFO(
+      get_logger(), "Submap created: %ld points", submap_ptr->points.size()
+  );
 
   return submap_ptr;
 }

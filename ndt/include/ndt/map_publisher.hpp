@@ -12,7 +12,8 @@
 
 class MapPublisher : public rclcpp::Node {
   using PointT = pcl::PointXYZ;
-  using PointPtr = pcl::PointCloud<pcl::PointXYZ>::Ptr;
+  using PointCloudT = pcl::PointCloud<pcl::PointXYZ>;
+  using PointCloudPtr = pcl::PointCloud<pcl::PointXYZ>::Ptr;
 
  public:
   MapPublisher();
@@ -21,12 +22,12 @@ class MapPublisher : public rclcpp::Node {
  private:
   void initialize_parameters();
   void load_and_publish_map(const std::string& path);
-  PointPtr create_submap(Eigen::Vector3d& curr_position) const;
+  PointCloudPtr create_submap(Eigen::Vector3d& curr_position) const;
 
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr map_pub_;
   rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr pose_sub_;
 
-  PointPtr map_ptr_;
+  PointCloudPtr map_ptr_;
 
   std::string map_file_;
   std::string map_frame_;
