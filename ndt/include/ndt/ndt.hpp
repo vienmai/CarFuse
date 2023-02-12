@@ -22,6 +22,7 @@ namespace localization {
 class NDTLocalization : public rclcpp::Node {
   using PointT = pcl::PointXYZ;
   using PointCloudT = pcl::PointCloud<pcl::PointXYZ>;
+  using PointCloudPtr = pcl::PointCloud<pcl::PointXYZ>::Ptr;
 
  public:
   NDTLocalization();
@@ -34,6 +35,7 @@ class NDTLocalization : public rclcpp::Node {
           initial_pose_msg
   );
   void initialize_parameters();
+  void initialize_pubsubs();
 
   /** @brief Publish the transformation between the laser and the map.
    * @param pose: The estimated pose in the map frame
@@ -61,6 +63,11 @@ class NDTLocalization : public rclcpp::Node {
       const std::string &target_frame, const std::string &source_frame
   ) const;
 
+  void voxel_filter(
+      const PointCloudPtr cloud_in, PointCloudPtr cloud_out,
+      const float leafsize
+  ) const;
+
   Eigen::Matrix4f pose_stamped_to_eigen(
       const geometry_msgs::msg::PoseStamped &pose_msg
   ) const;
@@ -81,9 +88,6 @@ class NDTLocalization : public rclcpp::Node {
   rclcpp::Subscription<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr
       initial_pose_sub_;
 
-  PointCloudT::Ptr map_ptr_;
-  pcl::NormalDistributionsTransform<PointT, PointT> ndt_;
-
   std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
   std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
   tf2::BufferCore tf_buffer_;
@@ -95,6 +99,7 @@ class NDTLocalization : public rclcpp::Node {
   std::string scan_topic_, initial_pose_topic_, map_topic_, pose_topic_,
       path_topic_, cloud_topic_, tf_topic_;
 
+  pcl::NormalDistributionsTransform<PointT, PointT> ndt_;
   double resolution_;
   double stepsize_;
   double epsilon_;
