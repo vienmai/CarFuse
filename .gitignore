@@ -16,7 +16,10 @@ __pycache__/
 
 # Log
 **/log/*
-.log
+*.log
+
+# Map files
+*.pcd
 
 # Figures
 *.svg
