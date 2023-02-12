@@ -55,10 +55,10 @@ This will start the NDT localization, IMU processing, GNSS processing, and ESEKF
 
 The reference frames used in the project are defined in the following way:
 
-*map: The map reference frame for the NDT localization.
-*laser: The frame of the lidar sensor, which is usually mounted on the vehicle's body.
-*IMU: The frame of the IMU sensor, which is usually also mounted on the vehicle's body.
-*GNSS: The WGS84 earth-centered earth-fixed (ECEF) reference frame.
-*base_link: The body frame of the vehicle, which is used as the reference for all other sensors.
+* map: The map reference frame for the NDT localization.
+* laser: The frame of the lidar sensor, which is usually mounted on the vehicle's body.
+* IMU: The frame of the IMU sensor, which is usually also mounted on the vehicle's body.
+* GNSS: The WGS84 earth-centered earth-fixed (ECEF) reference frame.
+* base_link: The body frame of the vehicle, which is used as the reference for all other sensors.
 
 When fusing measurements from multiple sensors, it is important to be aware of the different reference frames and to properly transform measurements from one frame to another as needed. In the CarFuse project, the Error State Extended Kalman Filter (ESEKF) is used to fuse the measurements obtained from different sensors, which are transformed to the `base_link` frame prior to the fusion process. The fused state estimates are then transformed back to the map frame for visualization and comparison with the ground truth.
