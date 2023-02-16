@@ -41,7 +41,6 @@ void MapPublisher::pose_callback(
 }
 
 void MapPublisher::load_and_publish_map(const std::string& path) {
-  // Load map file
   auto map_cloud = std::make_shared<PointCloudT>();
   if (pcl::io::loadPCDFile(path, *map_cloud) == -1) {
     RCLCPP_ERROR(get_logger(), "Failed to read map file %s", path.c_str());
@@ -58,8 +57,8 @@ void MapPublisher::load_and_publish_map(const std::string& path) {
   RCLCPP_INFO(get_logger(), "Global map: %ld points", map_ptr_->points.size());
 
   // Publish the map message
-  map_pub_->publish(map_msg);
-  RCLCPP_INFO(get_logger(), "Published the full map!");
+  // map_pub_->publish(map_msg);
+  // RCLCPP_INFO(get_logger(), "Published the full map!");
 }
 
 MapPublisher::PointCloudPtr MapPublisher::create_submap(
