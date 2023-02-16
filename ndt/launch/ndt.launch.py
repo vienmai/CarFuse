@@ -31,7 +31,10 @@ def generate_launch_description():
         package='ndt_locator',
         executable='ndt_node',
         parameters=[config_file],
-        remappings=[('/scan', '/os_cloud_node/points'),],
+        remappings=[
+            ('/scan', '/os_cloud_node/points'),
+            ('/initial_pose', '/initialpose'),
+        ],
         output='screen'
     )
 
