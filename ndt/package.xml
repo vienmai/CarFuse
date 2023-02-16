@@ -4,8 +4,8 @@
   <version>0.0.1</version>
   <description>NDT based localization package</description>
 
-  <maintainer email="vienmv90@gmail.com">Your Name</maintainer>
-  <license>TODO</license>
+  <maintainer email="mienvanmaidt2@gmail.com">Vien Mai</maintainer>
+  <license>MIT</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 
@@ -14,6 +14,7 @@
   <test_depend>ament_cmake_gtest</test_depend>
 
   <depend>rclcpp</depend>
+  <depend>libpcl-all-dev</depend>
   <depend>sensor_msgs</depend>
   <depend>geometry_msgs</depend>
   <depend>nav_msgs</depend>
