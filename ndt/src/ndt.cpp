@@ -11,6 +11,10 @@ void NDTLocalization::scan_callback(
 ) {
   RCLCPP_INFO(get_logger(), "Start scan callback.");
 
+  if (!initial_pose_received_ || !map_received_) {
+    return;
+  };
+
   // Convert the cloud message to a point cloud
   auto input_cloud = std::make_shared<PointCloudT>();
   pcl::fromROSMsg(*pcd_msg, *input_cloud);
@@ -30,8 +34,13 @@ void NDTLocalization::scan_callback(
   );
 
   // Perform scan matching
-  auto output_cloud = std::make_shared<PointCloudT>();
+  const std::lock_guard<std::mutex> lock(ndt_mtx_);
   ndt_.setInputSource(filtered_cloud);
+  if (ndt_.getInputTarget() == nullptr) {
+    RCLCPP_ERROR(get_logger(), "No input target!");
+    return;
+  }
+  auto output_cloud = std::make_shared<PointCloudT>();
   ndt_.align(*output_cloud, current_pose_);
   RCLCPP_INFO(get_logger(), "Finished ndt. Status: %d", ndt_.hasConverged());
 
@@ -67,29 +76,34 @@ void NDTLocalization::map_callback(
 ) {
   RCLCPP_INFO(get_logger(), "Start map callback.");
 
-  const auto trans_epsilon = ndt_.getTransformationEpsilon();
-  const auto step_size = ndt_.getStepSize();
-  const auto resolution = ndt_.getResolution();
-  const auto max_iterations = ndt_.getMaximumIterations();
+  // const auto trans_epsilon = ndt_.getTransformationEpsilon();
+  // const auto step_size = ndt_.getStepSize();
+  // const auto resolution = ndt_.getResolution();
+  // const auto max_iterations = ndt_.getMaximumIterations();
 
-  pcl::NormalDistributionsTransform<PointT, PointT> ndt_new;
+  // pcl::NormalDistributionsTransform<PointT, PointT> ndt_new;
 
-  ndt_new.setTransformationEpsilon(trans_epsilon);
-  ndt_new.setStepSize(step_size);
-  ndt_new.setResolution(resolution);
-  ndt_new.setMaximumIterations(max_iterations);
+  // ndt_new.setTransformationEpsilon(trans_epsilon);
+  // ndt_new.setStepSize(step_size);
+  // ndt_new.setResolution(resolution);
+  // ndt_new.setMaximumIterations(max_iterations);
 
   // Set the new map as the target cloud
   auto map_ptr = std::make_shared<PointCloudT>();
   pcl::fromROSMsg(*map_msg, *map_ptr);
-  ndt_new.setInputTarget(map_ptr);
+  ndt_.setInputTarget(map_ptr);
+  // ndt_new.setInputTarget(map_ptr);
 
-  // Dummy alignment to precompute the probability grid
-  auto output_cloud = std::make_shared<PointCloudT>();
-  ndt_new.align(*output_cloud, Eigen::Matrix4f::Identity());
+  // Dummy alignment to ...
+  // auto output_cloud = std::make_shared<PointCloudT>();
+  // ndt_new.align(*output_cloud);
 
-  // Point ndt_ to the new ndt matcher
-  ndt_ = ndt_new;
+  // Reset ndt_
+  // ndt_mutex_.lock();
+  // ndt_ = std::move(ndt_new);
+  // ndt_mutex_.unlock();
+
+  map_received_ = true;
 
   RCLCPP_INFO(get_logger(), "End map callback.");
 }
@@ -99,6 +113,7 @@ void NDTLocalization::initial_pose_callback(
         initial_pose_msg
 ) {
   RCLCPP_INFO(get_logger(), "Start intitial pose callback.");
+
   auto initpose_frame = initial_pose_msg->header.frame_id;
   RCLCPP_INFO(get_logger(), "Initial pose frame: %s", initpose_frame.c_str());
 
@@ -127,6 +142,8 @@ void NDTLocalization::initial_pose_callback(
   pose_pub_->publish(pose_msg);
   publish_path(pose_msg);
 
+  initial_pose_received_ = true;
+
   RCLCPP_INFO(get_logger(), "End initial pose callback.");
 }
 
@@ -138,24 +155,6 @@ void NDTLocalization::voxel_filter(
   voxel_filter.setInputCloud(cloud_in);
   voxel_filter.filter(*cloud_out);
 }
-
-// void NDTLocalization::range_filter(
-//   const PointCloudPtr cloud_in, PointCloudPtr cloud_out,
-//   const float min_range, const float max_range
-// ) {
-//   PointT point;
-//   for (auto item = cloud_in->begin(); item != cloud_in->end(); item++) {
-//     point.x = item->x;
-//     point.y = item->y;
-//     point.z = item->z;
-//     point.intensity = item->intensity;
-
-//     double r = std::pow(point.x, 2.0) + std::pow(point.y, 2.0);
-//     if (min_range <= r && r <= max_range) {
-//       output->push_back(point);
-//     }
-//   }
-// }
 
 void NDTLocalization::transform_pointcloud(
     const PointCloudT &cloud_in, PointCloudT &cloud_out,

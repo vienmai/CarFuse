@@ -11,6 +11,7 @@
 
 #include <geometry_msgs/msg/pose_stamped.hpp>
 #include <geometry_msgs/msg/pose_with_covariance_stamped.hpp>
+#include <mutex>
 #include <nav_msgs/msg/path.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/laser_scan.hpp>
@@ -98,6 +99,11 @@ class NDTLocalization : public rclcpp::Node {
   std::string map_frame_, vehicle_frame_, laser_frame_, initial_pose_frame_;
   std::string scan_topic_, initial_pose_topic_, map_topic_, pose_topic_,
       path_topic_, cloud_topic_, tf_topic_;
+
+  bool map_received_{false};
+  bool initial_pose_received_{false};
+
+  std::mutex ndt_mtx_;
 
   pcl::NormalDistributionsTransform<PointT, PointT> ndt_;
   double resolution_;
