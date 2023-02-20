@@ -34,6 +34,7 @@ link_directories(${PCL_LIBRARY_DIRS})
 add_library(${PROJECT_NAME} SHARED
   src/ndt.cpp
   src/map_publisher.cpp
+  src/utility.cpp
 )
 target_include_directories(${PROJECT_NAME}
   PRIVATE include

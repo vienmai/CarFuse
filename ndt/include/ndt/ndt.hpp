@@ -11,19 +11,18 @@
 
 #include <geometry_msgs/msg/pose_stamped.hpp>
 #include <geometry_msgs/msg/pose_with_covariance_stamped.hpp>
-#include <mutex>
 #include <nav_msgs/msg/path.hpp>
 #include <rclcpp/rclcpp.hpp>
-#include <sensor_msgs/msg/laser_scan.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
 #include <tf2_eigen/tf2_eigen.hpp>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 
+#include <mutex>
+
 namespace localization {
 class NDTLocalization : public rclcpp::Node {
-  using PointT = pcl::PointXYZ;
-  using PointCloudT = pcl::PointCloud<pcl::PointXYZ>;
-  using PointCloudPtr = pcl::PointCloud<pcl::PointXYZ>::Ptr;
+  using PointCloud = pcl::PointCloud<pcl::PointXYZ>;
+  using NDT = pcl::NormalDistributionsTransform<pcl::PointXYZ, pcl::PointXYZ>;
 
  public:
   NDTLocalization();
@@ -52,32 +51,19 @@ class NDTLocalization : public rclcpp::Node {
    * @param cloud: The cloud to be published.
    * @param stamp: The time at which this pose was calculated. Default: 0.
    */
-  void publish_cloud(const PointCloudT::Ptr &cloud, const rclcpp::Time &stamp);
+  void publish_cloud(
+    const PointCloud::Ptr &cloud, const rclcpp::Time &stamp,
+    const Eigen::Matrix4f &pose
+  );
 
-  /** @brief Transform the input point cloud to the target frame
-   * @param cloud_in: The input point cloud.
-   * @param cloud_out: The output transfomred point cloud.
+  /** @bNDT = rief Transform the input point cloud to the target frame
+   * @param incloud: The input point cloud.
+   * @param outcloud: The output transfomred point cloud.
    * @param target_frame: The name of the target frame.
    */
   void transform_pointcloud(
-      const PointCloudT &cloud_in, PointCloudT &cloud_out,
+      const PointCloud &incloud, PointCloud &outcloud,
       const std::string &target_frame, const std::string &source_frame
-  ) const;
-
-  void voxel_filter(
-      const PointCloudPtr cloud_in, PointCloudPtr cloud_out,
-      const float leafsize
-  ) const;
-
-  Eigen::Matrix4f pose_stamped_to_eigen(
-      const geometry_msgs::msg::PoseStamped &pose_msg
-  ) const;
-
-  /** @brief Transform tf2 stamped to Eigen::Matrix4f.
-   * @param tf_stamped: The input transform stamped
-   */
-  Eigen::Matrix4f tf_stamped_to_eigen(
-      const geometry_msgs::msg::TransformStamped &tf_stamped
   ) const;
 
   rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr pose_pub_;
@@ -100,12 +86,14 @@ class NDTLocalization : public rclcpp::Node {
   std::string scan_topic_, initial_pose_topic_, map_topic_, pose_topic_,
       path_topic_, cloud_topic_, tf_topic_;
 
+  int index_{0};
+
   bool map_received_{false};
   bool initial_pose_received_{false};
 
   std::mutex ndt_mtx_;
 
-  pcl::NormalDistributionsTransform<PointT, PointT> ndt_;
+  std::shared_ptr<NDT> ndt_;
   double resolution_;
   double stepsize_;
   double epsilon_;
