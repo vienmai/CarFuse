@@ -26,12 +26,12 @@ def generate_launch_description():
     )
 
     rviz_node = launch_ros.actions.Node(
-            package='rviz2',
-            executable='rviz2',
-            arguments=['-d', rviz_file],
-            name='rviz2',
-            output='screen'
-        )
+        package='rviz2',
+        executable='rviz2',
+        arguments=['-d', rviz_file],
+        name='rviz2',
+        output='screen'
+    )
 
     map_publisher_node = launch_ros.actions.Node(
         package='ndt_locator',

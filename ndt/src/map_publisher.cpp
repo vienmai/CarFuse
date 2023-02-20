@@ -15,9 +15,9 @@ MapPublisher::MapPublisher() : Node("map_publisher") {
 void MapPublisher::pose_callback(
     const geometry_msgs::msg::PoseStamped::SharedPtr pose_msg
 ) {
-  Eigen::Affine3d pose;
+  Eigen::Affine3f pose;
   tf2::fromMsg(pose_msg->pose, pose);
-  Eigen::Vector3d curr_position(pose(0, 3), pose(1, 3), pose(2, 3));
+  Eigen::Vector3f curr_position(pose(0, 3), pose(1, 3), pose(2, 3));
 
   if (!first_submap_) {
     travel_dist_ += (curr_position - prev_position_).norm();
@@ -40,25 +40,21 @@ void MapPublisher::pose_callback(
   prev_position_ = curr_position;
 }
 
-void MapPublisher::load_and_publish_map(const std::string& path) {
+void MapPublisher::loadmap(const std::string& path) {
   auto map_cloud = std::make_shared<PointCloudT>();
+
   if (pcl::io::loadPCDFile(path, *map_cloud) == -1) {
     RCLCPP_ERROR(get_logger(), "Failed to read map file %s", path.c_str());
     return;
   }
 
-  // Convert the PointCloud to a PointCloud2 message
   sensor_msgs::msg::PointCloud2 map_msg;
   pcl::toROSMsg(*map_cloud, map_msg);
   map_msg.header.frame_id = map_frame_;
 
   // Set the pointer to the global map
   map_ptr_ = map_cloud;
-  RCLCPP_INFO(get_logger(), "Global map: %ld points", map_ptr_->points.size());
-
-  // Publish the map message
-  // map_pub_->publish(map_msg);
-  // RCLCPP_INFO(get_logger(), "Published the full map!");
+  RCLCPP_INFO(get_logger(), "Full map: %ld points", map_ptr_->points.size());
 }
 
 MapPublisher::PointCloudPtr MapPublisher::create_submap(

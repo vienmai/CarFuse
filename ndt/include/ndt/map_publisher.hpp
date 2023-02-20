@@ -33,7 +33,7 @@ class MapPublisher : public rclcpp::Node {
   std::string map_frame_;
   std::string map_topic_, pose_topic_;
 
-  Eigen::Vector3d prev_position_;
+  Eigen::Vector3f prev_position_;
 
   bool first_submap_{true};
   float travel_dist_{0};
