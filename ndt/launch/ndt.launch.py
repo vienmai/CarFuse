@@ -12,6 +12,11 @@ def generate_launch_description():
         'config/config.yaml'
     )
 
+    rviz_file = os.path.join(
+        get_package_share_directory('ndt_locator'),
+        'rviz/config.rviz'
+    )
+
     tf = launch_ros.actions.Node(
         package='tf2_ros',
         executable='static_transform_publisher',
@@ -19,6 +24,14 @@ def generate_launch_description():
             '0', '0', '0', '0', '0', '0', '1', 'base_link', 'os_sensor'
         ]
     )
+
+    rviz_node = launch_ros.actions.Node(
+            package='rviz2',
+            executable='rviz2',
+            arguments=['-d', rviz_file],
+            name='rviz2',
+            output='screen'
+        )
 
     map_publisher_node = launch_ros.actions.Node(
         package='ndt_locator',
@@ -42,6 +55,7 @@ def generate_launch_description():
         tf,
         map_publisher_node,
         ndt_locator_node,
+        rviz_node,
     ])
 
     return ld
