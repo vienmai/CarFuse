@@ -21,8 +21,8 @@ class MapPublisher : public rclcpp::Node {
 
  private:
   void initialize_parameters();
-  void load_and_publish_map(const std::string& path);
-  PointCloudPtr create_submap(Eigen::Vector3d& curr_position) const;
+  void loadmap(const std::string& path);
+  PointCloudPtr create_submap(Eigen::Vector3f& curr_position) const;
 
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr map_pub_;
   rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr pose_sub_;

@@ -4,7 +4,7 @@ MapPublisher::MapPublisher() : Node("map_publisher") {
   initialize_parameters();
 
   map_pub_ = create_publisher<sensor_msgs::msg::PointCloud2>(map_topic_, 10);
-  this->load_and_publish_map(map_file_);
+  this->loadmap(map_file_);
 
   pose_sub_ = create_subscription<geometry_msgs::msg::PoseStamped>(
       pose_topic_, 10,
@@ -15,7 +15,7 @@ MapPublisher::MapPublisher() : Node("map_publisher") {
 void MapPublisher::pose_callback(
     const geometry_msgs::msg::PoseStamped::SharedPtr pose_msg
 ) {
-  Eigen::Affine3f pose;
+  Eigen::Affine3d pose;
   tf2::fromMsg(pose_msg->pose, pose);
   Eigen::Vector3f curr_position(pose(0, 3), pose(1, 3), pose(2, 3));
 
@@ -58,7 +58,7 @@ void MapPublisher::loadmap(const std::string& path) {
 }
 
 MapPublisher::PointCloudPtr MapPublisher::create_submap(
-    Eigen::Vector3d& curr_position
+    Eigen::Vector3f& curr_position
 ) const {
   pcl::CropBox<PointT> box_filter;
   box_filter.setMin(Eigen::Vector4f(

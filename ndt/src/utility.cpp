@@ -27,7 +27,7 @@ geometry_msgs::msg::PoseStamped eigen_to_pose_stamped(
 Eigen::Matrix4f pose_stamped_to_eigen(
     const geometry_msgs::msg::PoseStamped &pose_msg
 ) {
-  Eigen::Affine3f affine;
+  Eigen::Affine3d affine;
   tf2::fromMsg(pose_msg.pose, affine);
   Eigen::Matrix4f eigen_matrix = affine.matrix().cast<float>();
   return eigen_matrix;
