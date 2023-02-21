@@ -1,4 +1,5 @@
 #include "ndt/ndt.hpp"
+
 #include "ndt/utility.hpp"
 
 namespace localization {
@@ -49,17 +50,19 @@ void NDTLocalization::scan_callback(
   auto outcloud = std::make_shared<PointCloud>();
   ndt_->align(*outcloud, current_pose_);
 
-  std::cout << "has converged:" << ndt_->hasConverged() << " score: " <<
-  ndt_->getFitnessScore() << " niters: " << ndt_->getFinalNumIteration() << std::endl;
+  std::cout << "has converged:" << ndt_->hasConverged()
+            << " score: " << ndt_->getFitnessScore()
+            << " niters: " << ndt_->getFinalNumIteration() << std::endl;
 
   // Update current pose
   current_pose_ = ndt_->getFinalTransformation();
 
-  RCLCPP_INFO(get_logger(), "Num scan processed: %d", ++index_);
+  RCLCPP_INFO(get_logger(), "Num scans processed: %d", ++index_);
 
   // Publish the results
   auto stamp = pcd_msg->header.stamp;
-  auto pose_msg = utility::eigen_to_pose_stamped(current_pose_, map_frame_, stamp);
+  auto pose_msg =
+      utility::eigen_to_pose_stamped(current_pose_, map_frame_, stamp);
   pose_pub_->publish(pose_msg);
   publish_transform(pose_msg);
   publish_path(pose_msg);
@@ -89,7 +92,9 @@ void NDTLocalization::map_callback(
   auto map_ptr = std::make_shared<PointCloud>();
   pcl::fromROSMsg(*map_msg, *map_ptr);
   ndt_new->setInputTarget(map_ptr);
-  RCLCPP_INFO(get_logger(), "Received submap: %ld points", map_ptr->points.size());
+  RCLCPP_INFO(
+      get_logger(), "Received submap: %ld points", map_ptr->points.size()
+  );
 
   // Dumm alignment to ...
   auto outcloud = std::make_shared<PointCloud>();
@@ -148,7 +153,10 @@ void NDTLocalization::transform_pointcloud(
     const PointCloud &incloud, PointCloud &outcloud,
     const std::string &target_frame, const std::string &source_frame
 ) const {
-  RCLCPP_INFO(get_logger(), "Target: %s, Source: %s", target_frame.c_str(), source_frame.c_str());
+  RCLCPP_INFO(
+      get_logger(), "Target: %s, Source: %s", target_frame.c_str(),
+      source_frame.c_str()
+  );
   geometry_msgs::msg::TransformStamped tf_stamped;
   try {
     tf_stamped = tf_buffer_.lookupTransform(
