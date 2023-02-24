@@ -48,6 +48,7 @@ void NDTLocalization::scan_callback(
   }
   ndt_->setInputSource(voxel_cloud);
   auto outcloud = std::make_shared<PointCloud>();
+  // ndt_->align(*outcloud);
   ndt_->align(*outcloud, current_pose_);
 
   std::cout << "has converged:" << ndt_->hasConverged()
@@ -96,9 +97,14 @@ void NDTLocalization::map_callback(
       get_logger(), "Received submap: %ld points", map_ptr->points.size()
   );
 
-  // Dumm alignment to ...
+  // Dummy alignment to ...
+  auto dummy_ptr = std::make_shared<PointCloud>();
+  PointT dummy_point;
+  dummy_ptr->push_back(dummy_point);
+  ndt_new->setInputSource(dummy_ptr);
+
   auto outcloud = std::make_shared<PointCloud>();
-  ndt_new->align(*outcloud);
+  ndt_new->align(*outcloud, Eigen::Matrix4f::Identity());
 
   // Reset ndt_
   ndt_mtx_.lock();
@@ -292,7 +298,7 @@ void NDTLocalization::initialize_pubsubs() {
 
   // Initialize the subscriber for the lidar scan
   scan_sub_ = this->create_subscription<sensor_msgs::msg::PointCloud2>(
-      scan_topic_, rclcpp::QoS(rclcpp::KeepLast(100)),
+      scan_topic_, rclcpp::QoS(rclcpp::KeepLast(10)),
       std::bind(&NDTLocalization::scan_callback, this, std::placeholders::_1)
   );
 
