@@ -28,39 +28,22 @@ class NDTLocalization : public rclcpp::Node {
   NDTLocalization();
 
  private:
+  void initialize_parameters();
+  void initialize_pubsubs();
+
   void scan_callback(const sensor_msgs::msg::PointCloud2::SharedPtr scan_msg);
   void map_callback(const sensor_msgs::msg::PointCloud2::SharedPtr map_msg);
   void initial_pose_callback(
       const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr
           initial_pose_msg
   );
-  void initialize_parameters();
-  void initialize_pubsubs();
 
-  /** @brief Publish the transformation between the laser and the map.
-   * @param pose: The estimated pose in the map frame
-   */
   void publish_transform(geometry_msgs::msg::PoseStamped &pose_msg) const;
-
-  /** @brief Publish the estimated path.
-   * @param pose_msg: The estimated pose in the map frame
-   */
   void publish_path(geometry_msgs::msg::PoseStamped &pose_msg);
-
-  /** @brief Publish the point cloud.
-   * @param cloud: The cloud to be published.
-   * @param stamp: The time at which this pose was calculated. Default: 0.
-   */
   void publish_cloud(
     const PointCloud::Ptr &cloud, const rclcpp::Time &stamp,
     const Eigen::Matrix4f &pose
   );
-
-  /** @bNDT = rief Transform the input point cloud to the target frame
-   * @param incloud: The input point cloud.
-   * @param outcloud: The output transfomred point cloud.
-   * @param target_frame: The name of the target frame.
-   */
   void transform_pointcloud(
       const PointCloud &incloud, PointCloud &outcloud,
       const std::string &target_frame, const std::string &source_frame

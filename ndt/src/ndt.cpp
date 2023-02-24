@@ -1,5 +1,4 @@
 #include "ndt/ndt.hpp"
-
 #include "ndt/utility.hpp"
 
 namespace localization {
