@@ -41,7 +41,7 @@ void MapPublisher::pose_callback(
 }
 
 void MapPublisher::loadmap(const std::string& path) {
-  auto map_cloud = std::make_shared<PointCloudT>();
+  auto map_cloud = std::make_shared<PointCloud>();
 
   if (pcl::io::loadPCDFile(path, *map_cloud) == -1) {
     RCLCPP_ERROR(get_logger(), "Failed to read map file %s", path.c_str());
@@ -70,7 +70,7 @@ MapPublisher::PointCloudPtr MapPublisher::create_submap(
       curr_position.z() + submap_size_z_, 1.0
   ));
 
-  auto submap_ptr = std::make_shared<PointCloudT>();
+  auto submap_ptr = std::make_shared<PointCloud>();
   box_filter.setInputCloud(map_ptr_);
   box_filter.filter(*submap_ptr);
   RCLCPP_INFO(

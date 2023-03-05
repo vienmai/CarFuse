@@ -12,7 +12,7 @@
 
 class MapPublisher : public rclcpp::Node {
   using PointT = pcl::PointXYZ;
-  using PointCloudT = pcl::PointCloud<pcl::PointXYZ>;
+  using PointCloud = pcl::PointCloud<pcl::PointXYZ>;
   using PointCloudPtr = pcl::PointCloud<pcl::PointXYZ>::Ptr;
 
  public:
