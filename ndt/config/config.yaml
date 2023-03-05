@@ -1,40 +1,38 @@
 /**:
   ros__parameters:
-    map_topic: "/map"
+    # Frames
     map_frame: "map"
+    vehicle_frame: "base_link"
+    laser_frame: "os_sensor"
+
+    # Topics
+    map_topic: "/map"
     pose_topic: "/pose"
+    rawscan_topic: "/rawscan"
+    scan_topic: "/scan"
+    initial_pose_topic: "/initial_pose"
+    cloud_topic: "/cloud"
+    tf_topic: "/tf"
+    path_topic: "/rviz/path"
 
     use_sim_time: true
 
 /ndt:
   ros__parameters:
-    # NDT matcher
     epsilon: 0.05
     stepsize: 0.1
     resolution: 3.0
-    maxiters: 5
-    leafsize: 2.0
-
-    # TF2 buffer size
-    tf2_buffer_size: 10
-
-    # Subscriber topics
-    scan_topic: "/scan"
-    initial_pose_topic: "/initial_pose"
-
-    # Publisher topics
-    cloud_topic: "/cloud"
-    tf_topic: "/tf"
-    path_topic: "/rviz/path"
-
-    # Reference frames
-    vehicle_frame: "base_link"
-    laser_frame: "os_sensor"
+    maxiters: 35
 
 /map_publisher:
   ros__parameters:
-    map_file: "/ros2_ws/install/ndt_locator/share/ndt_locator/maps/court_yard_map.pcd"
+    map_file: "/ros2_ws/install/ndt_locator/share/ndt_locator/map/court_yard_map.pcd"
+    map_update_threshold: 25.0
+    submap_size_xy: 50.0
+    submap_size_z: 20.0
 
-    map_update_threshold: 20.0
-    submap_size_xy: 20.0
-    submap_size_z: 10.0
+/lidar_processor:
+  ros__parameters:
+    leafsize: 2.0
+    min_range: 5.0
+    max_range: 50.0

@@ -40,12 +40,21 @@ def generate_launch_description():
         output='screen'
     )
 
+    lidar_processor_node = launch_ros.actions.Node(
+        package='ndt_locator',
+        executable='lidar_processor_node',
+        parameters=[config_file],
+        remappings=[
+            ('/rawscan', '/os_cloud_node/points'),
+        ],
+        output='screen'
+    )
+
     ndt_locator_node = launch_ros.actions.Node(
         package='ndt_locator',
         executable='ndt_node',
         parameters=[config_file],
         remappings=[
-            ('/scan', '/os_cloud_node/points'),
             ('/initial_pose', '/initialpose'),
         ],
         output='screen'
@@ -54,6 +63,7 @@ def generate_launch_description():
     ld = launch.LaunchDescription([
         tf,
         map_publisher_node,
+        lidar_processor_node,
         ndt_locator_node,
         rviz_node,
     ])

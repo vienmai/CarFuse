@@ -18,25 +18,12 @@ void NDTLocalization::scan_callback(
     return;
   };
 
-  // Convert the cloud message to a point cloud
+  // Transform the cloud to the vehicle frame
   auto cloud = std::make_shared<PointCloud>();
   pcl::fromROSMsg(*pcd_msg, *cloud);
-  RCLCPP_INFO(get_logger(), "Received %ld points", cloud->points.size());
-
-  // Filtering input scan to reduce size
-  auto scans = std::make_shared<PointCloud>();
-  utility::range_filter(cloud, scans, 5, 60);
-
-  // Transform the cloud from sensor to vehicle frame
   auto tfcloud = std::make_shared<PointCloud>();
   transform_pointcloud(
-      *scans, *tfcloud, vehicle_frame_, pcd_msg->header.frame_id
-  );
-
-  auto voxel_cloud = std::make_shared<PointCloud>();
-  utility::voxel_filter(tfcloud, voxel_cloud, leafsize_);
-  RCLCPP_INFO(
-      get_logger(), "Filtered cloud: %ld points", voxel_cloud->points.size()
+      *cloud, *tfcloud, vehicle_frame_, pcd_msg->header.frame_id
   );
 
   // Perform scan matching
@@ -45,21 +32,16 @@ void NDTLocalization::scan_callback(
     RCLCPP_ERROR(get_logger(), "No input target!");
     return;
   }
-  ndt_->setInputSource(voxel_cloud);
+  ndt_->setInputSource(tfcloud);
   auto outcloud = std::make_shared<PointCloud>();
-  // ndt_->align(*outcloud);
   ndt_->align(*outcloud, current_pose_);
 
   std::cout << "has converged:" << ndt_->hasConverged()
             << " score: " << ndt_->getFitnessScore()
             << " niters: " << ndt_->getFinalNumIteration() << std::endl;
 
-  // Update current pose
-  current_pose_ = ndt_->getFinalTransformation();
-
-  RCLCPP_INFO(get_logger(), "Num scans processed: %d", ++index_);
-
   // Publish the results
+  current_pose_ = ndt_->getFinalTransformation();
   auto stamp = pcd_msg->header.stamp;
   auto pose_msg =
       utility::eigen_to_pose_stamped(current_pose_, map_frame_, stamp);
@@ -68,6 +50,7 @@ void NDTLocalization::scan_callback(
   publish_path(pose_msg);
   publish_cloud(cloud, stamp, current_pose_);
 
+  RCLCPP_INFO(get_logger(), "Num scans processed: %d", ++index_);
   RCLCPP_INFO(get_logger(), "End scan callback.");
 }
 
@@ -96,12 +79,7 @@ void NDTLocalization::map_callback(
       get_logger(), "Received submap: %ld points", map_ptr->points.size()
   );
 
-  // Dummy alignment to ...
-  auto dummy_ptr = std::make_shared<PointCloud>();
-  PointT dummy_point;
-  dummy_ptr->push_back(dummy_point);
-  ndt_new->setInputSource(dummy_ptr);
-
+  // Dummy alignment
   auto outcloud = std::make_shared<PointCloud>();
   ndt_new->align(*outcloud, Eigen::Matrix4f::Identity());
 

@@ -34,6 +34,7 @@ link_directories(${PCL_LIBRARY_DIRS})
 add_library(${PROJECT_NAME} SHARED
   src/ndt.cpp
   src/map_publisher.cpp
+  src/lidar_processor.cpp
   src/utility.cpp
 )
 target_include_directories(${PROJECT_NAME}
@@ -58,17 +59,26 @@ target_include_directories(map_publisher_node
 ament_target_dependencies(map_publisher_node ${dependencies})
 target_link_libraries(map_publisher_node ${PROJECT_NAME} ${PCL_LIBRARIES})
 
+add_executable(lidar_processor_node src/lidar_processor_node.cpp)
+target_include_directories(lidar_processor_node
+  PRIVATE include
+  ${PCL_INCLUDE_DIRS}
+)
+ament_target_dependencies(lidar_processor_node ${dependencies})
+target_link_libraries(lidar_processor_node ${PROJECT_NAME} ${PCL_LIBRARIES})
+
 install(TARGETS
   ${PROJECT_NAME}
   ndt_node
   map_publisher_node
+  lidar_processor_node
   DESTINATION lib/${PROJECT_NAME}
 )
 
 install(DIRECTORY
   config
   launch
-  maps
+  map
   rviz
   DESTINATION share/${PROJECT_NAME}
 )

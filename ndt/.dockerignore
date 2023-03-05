@@ -9,7 +9,4 @@ build/
 log/
 **/log/*
 
-data/
-**/data/*
-
 note.md
