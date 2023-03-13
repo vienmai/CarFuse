@@ -18,13 +18,17 @@ void NDTLocalization::scan_callback(
     return;
   };
 
+  const auto stamp = pcd_msg->header.stamp;
+
   // Transform the cloud to the vehicle frame
-  auto cloud = std::make_shared<PointCloud>();
+  const auto cloud = std::make_shared<PointCloud>();
   pcl::fromROSMsg(*pcd_msg, *cloud);
   auto tfcloud = std::make_shared<PointCloud>();
-  transform_pointcloud(
-      *cloud, *tfcloud, vehicle_frame_, pcd_msg->header.frame_id
+  const auto tf_stamped = get_transform(
+    vehicle_frame_, pcd_msg->header.frame_id, stamp
   );
+  const auto eigen_matrix = utility::tf_stamped_to_eigen(tf_stamped);
+  pcl::transformPointCloud(cloud, tfcloud, eigen_matrix);
 
   // Perform scan matching
   const std::lock_guard<std::mutex> lock(ndt_mtx_);
@@ -34,24 +38,39 @@ void NDTLocalization::scan_callback(
   }
   ndt_->setInputSource(tfcloud);
   auto outcloud = std::make_shared<PointCloud>();
-  ndt_->align(*outcloud, current_pose_);
+  if (use_odom_) {
+    ndt_initguess_from_odom(ndt_pose_, stamp);
+  }
+  ndt_->align(*outcloud, ndt_pose_);
 
-  std::cout << "has converged:" << ndt_->hasConverged()
+  std::cout << "Convergence:" << ndt_->hasConverged()
             << " score: " << ndt_->getFitnessScore()
             << " niters: " << ndt_->getFinalNumIteration() << std::endl;
 
+  // Update the current pose
+  ndt_pose_ = ndt_->getFinalTransformation();
+
   // Publish the results
-  current_pose_ = ndt_->getFinalTransformation();
-  auto stamp = pcd_msg->header.stamp;
-  auto pose_msg =
-      utility::eigen_to_pose_stamped(current_pose_, map_frame_, stamp);
+  const auto pose_msg =
+      utility::eigen_to_pose_stamped(ndt_pose_, map_frame_, stamp);
   pose_pub_->publish(pose_msg);
   publish_transform(pose_msg);
   publish_path(pose_msg);
-  publish_cloud(cloud, stamp, current_pose_);
+  publish_cloud(cloud, stamp, ndt_pose_);
 
   RCLCPP_INFO(get_logger(), "Num scans processed: %d", ++index_);
   RCLCPP_INFO(get_logger(), "End scan callback.");
+}
+
+void NDTLocalization::ndt_initguess_from_odom(
+  const Eigen::Matrix4f &ndt_pose, const rclcpp::Time &stamp
+) {
+  const auto vehicle_to_odom = get_transform(odom_frame_, vehicle_frame_, stamp)
+  const auto odom_pose = utility::tf_stamped_to_eigen(vehicle_to_odom);
+  if (prev_odom_pose_ != Eigen::Matrix4f::Identity()) {
+    ndt_pose = ndt_pose * prev_odom_pose_.inverse() * odom_pose;
+  }
+  prev_odom_pose_ = odom_pose;
 }
 
 void NDTLocalization::map_callback(
@@ -99,31 +118,25 @@ void NDTLocalization::initial_pose_callback(
 ) {
   RCLCPP_INFO(get_logger(), "Start intitial pose callback.");
 
-  auto initpose_frame = initial_pose_msg->header.frame_id;
+  const auto initpose_frame = initial_pose_msg->header.frame_id;
   RCLCPP_INFO(get_logger(), "Initial pose frame: %s", initpose_frame.c_str());
 
+  const auto stamp = initial_pose_msg->header.stamp;
   if (initpose_frame != map_frame_) {
-    RCLCPP_INFO(
-        get_logger(), "Transform initial pose to %s frame", map_frame_.c_str()
-    );
-    geometry_msgs::msg::TransformStamped tf_stamped;
-    try {
-      tf_stamped = tf_buffer_.lookupTransform(
-          map_frame_, initpose_frame, tf2::TimePointZero
-      );
-    } catch (tf2::TransformException &ex) {
-      RCLCPP_WARN(get_logger(), "%s", ex.what());
-      return;
-    }
+    const auto tf_stamped = get_transform(map_frame_, initpose_frame, stamp);
     tf2::doTransform(*initial_pose_msg, *initial_pose_msg, tf_stamped);
+
+    RCLCPP_INFO(
+      get_logger(), "Transformed initpose to %s frame", map_frame_.c_str()
+    );
   }
 
   geometry_msgs::msg::PoseStamped pose_msg;
   pose_msg.header.frame_id = map_frame_;
-  pose_msg.header.stamp = initial_pose_msg->header.stamp;
+  pose_msg.header.stamp = stamp;
   pose_msg.pose = initial_pose_msg->pose.pose;
 
-  current_pose_ = utility::pose_stamped_to_eigen(pose_msg);
+  ndt_pose_ = utility::pose_stamped_to_eigen(pose_msg);
   pose_pub_->publish(pose_msg);
   publish_path(pose_msg);
 
@@ -140,16 +153,8 @@ void NDTLocalization::transform_pointcloud(
       get_logger(), "Target: %s, Source: %s", target_frame.c_str(),
       source_frame.c_str()
   );
-  geometry_msgs::msg::TransformStamped tf_stamped;
-  try {
-    tf_stamped = tf_buffer_.lookupTransform(
-        target_frame, source_frame, tf2::TimePointZero
-    );
-  } catch (tf2::TransformException &ex) {
-    RCLCPP_WARN(get_logger(), "%s", ex.what());
-    return;
-  }
-  auto eigen_matrix = utility::tf_stamped_to_eigen(tf_stamped);
+  const auto tf_stamped = get_transform(target_frame, source_frame, )
+  const auto eigen_matrix = utility::tf_stamped_to_eigen(tf_stamped);
   pcl::transformPointCloud(incloud, outcloud, eigen_matrix);
 }
 
@@ -191,6 +196,30 @@ void NDTLocalization::publish_path(geometry_msgs::msg::PoseStamped &pose_msg) {
   path_.poses.push_back(pose_msg);
   path_pub_->publish(path_);
   RCLCPP_INFO(get_logger(), "Path published to %s topic!", path_topic_.c_str());
+}
+
+geometry_msgs::msg::TransformStamped NDTLocalization::get_transform(
+  const std::string &target_frame,
+  const std::string &source_frame,
+  const rclcpp::Time &stamp
+) {
+  auto id = utility::identity_tf_stamped(target_frame, source_frame, stamp);
+
+  if (target_frame == source_frame) {
+    return id;
+  }
+
+  geometry_msgs::msg::TransformStamped tf_stamped;
+  try {
+    tf_stamped = tf2_buffer_.lookupTransform(
+      target_frame, source_frame, tf2::TimePointZero
+    );
+  } catch (const tf2::TransformException & ex) {
+    RCLCPP_WARN(get_logger(), "%s", ex.what());
+    tf_stamped = id;
+  }
+
+  return tf_stamped;
 }
 
 void NDTLocalization::initialize_parameters() {

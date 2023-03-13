@@ -2,6 +2,26 @@
 
 namespace utility {
 
+geometry_msgs::msg::TransformStamped identity_tf_stamped(
+  const std::string &header_frame_id,
+  const std::string &child_frame_id,
+  const rclcpp::Time &stamp
+) {
+  geometry_msgs::msg::TransformStamped tf_stamped;
+  tf_stamped.header.stamp = stamp;
+  tf_stamped.header.frame_id = header_frame_id;
+  tf_stamped.child_frame_id = child_frame_id;
+  tf_stamped.transform.translation.x = 0;
+  tf_stamped.transform.translation.y = 0;
+  tf_stamped.transform.translation.z = 0;
+  tf_stamped.transform.rotation.x = 0;
+  tf_stamped.transform.rotation.y = 0;
+  tf_stamped.transform.rotation.z = 0;
+  tf_stamped.transform.rotation.w = 1;
+
+  return tf_stamped;
+}
+
 geometry_msgs::msg::PoseStamped eigen_to_pose_stamped(
     const Eigen::Matrix4f &pose, const std::string &frame_id,
     const rclcpp::Time &stamp

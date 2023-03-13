@@ -4,9 +4,11 @@
     map_frame: "map"
     vehicle_frame: "base_link"
     laser_frame: "os_sensor"
+    odom_frame: "odom"
 
     # Topics
     map_topic: "/map"
+    odom_topic: "/odom"
     pose_topic: "/pose"
     rawscan_topic: "/rawscan"
     scan_topic: "/scan"

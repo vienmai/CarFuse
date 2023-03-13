@@ -62,7 +62,7 @@ class NDTLocalization : public rclcpp::Node {
   std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
   tf2::BufferCore tf_buffer_;
 
-  Eigen::Matrix4f current_pose_;
+  Eigen::Matrix4f ndt_pose_, prev_odom_pose_;
   nav_msgs::msg::Path path_;
 
   std::string map_frame_, vehicle_frame_, laser_frame_, initial_pose_frame_;

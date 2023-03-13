@@ -6,8 +6,7 @@ docker build -t ndt:dev .
 # Run the container
 
 ```bash
-compose up -d novnc
-compose up -d ndt
+compose up -d
 ```
 
 Next, issue the following command to get access to the running container:
@@ -17,7 +16,6 @@ docker exec -it ndt_locator /bin/bash
 Remember to `source` the `ros_entrypoint.sh` at top level directory or source
 the `entrypoint.sh` in the working directory:
 ```bash
-source /ros_entrypoint.sh
 source entrypoint.sh
 ```
 This is because `docker exec` won't execute the `entrypoint` as `docker run`
