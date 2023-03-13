@@ -1,4 +1,5 @@
 #include "ndt/ndt.hpp"
+
 #include "ndt/utility.hpp"
 
 namespace localization {
@@ -21,14 +22,13 @@ void NDTLocalization::scan_callback(
   const auto stamp = pcd_msg->header.stamp;
 
   // Transform the cloud to the vehicle frame
-  const auto cloud = std::make_shared<PointCloud>();
+  auto cloud = std::make_shared<PointCloud>();
   pcl::fromROSMsg(*pcd_msg, *cloud);
   auto tfcloud = std::make_shared<PointCloud>();
-  const auto tf_stamped = get_transform(
-    vehicle_frame_, pcd_msg->header.frame_id, stamp
-  );
+  const auto tf_stamped =
+      get_transform(vehicle_frame_, pcd_msg->header.frame_id, stamp);
   const auto eigen_matrix = utility::tf_stamped_to_eigen(tf_stamped);
-  pcl::transformPointCloud(cloud, tfcloud, eigen_matrix);
+  pcl::transformPointCloud(*cloud, *tfcloud, eigen_matrix);
 
   // Perform scan matching
   const std::lock_guard<std::mutex> lock(ndt_mtx_);
@@ -51,8 +51,7 @@ void NDTLocalization::scan_callback(
   ndt_pose_ = ndt_->getFinalTransformation();
 
   // Publish the results
-  const auto pose_msg =
-      utility::eigen_to_pose_stamped(ndt_pose_, map_frame_, stamp);
+  auto pose_msg = utility::eigen_to_pose_stamped(ndt_pose_, map_frame_, stamp);
   pose_pub_->publish(pose_msg);
   publish_transform(pose_msg);
   publish_path(pose_msg);
@@ -63,9 +62,10 @@ void NDTLocalization::scan_callback(
 }
 
 void NDTLocalization::ndt_initguess_from_odom(
-  const Eigen::Matrix4f &ndt_pose, const rclcpp::Time &stamp
+    Eigen::Matrix4f &ndt_pose, const rclcpp::Time &stamp
 ) {
-  const auto vehicle_to_odom = get_transform(odom_frame_, vehicle_frame_, stamp)
+  const auto vehicle_to_odom =
+      get_transform(odom_frame_, vehicle_frame_, stamp);
   const auto odom_pose = utility::tf_stamped_to_eigen(vehicle_to_odom);
   if (prev_odom_pose_ != Eigen::Matrix4f::Identity()) {
     ndt_pose = ndt_pose * prev_odom_pose_.inverse() * odom_pose;
@@ -127,7 +127,7 @@ void NDTLocalization::initial_pose_callback(
     tf2::doTransform(*initial_pose_msg, *initial_pose_msg, tf_stamped);
 
     RCLCPP_INFO(
-      get_logger(), "Transformed initpose to %s frame", map_frame_.c_str()
+        get_logger(), "Transformed initpose to %s frame", map_frame_.c_str()
     );
   }
 
@@ -145,18 +145,18 @@ void NDTLocalization::initial_pose_callback(
   RCLCPP_INFO(get_logger(), "End initial pose callback.");
 }
 
-void NDTLocalization::transform_pointcloud(
-    const PointCloud &incloud, PointCloud &outcloud,
-    const std::string &target_frame, const std::string &source_frame
-) const {
-  RCLCPP_INFO(
-      get_logger(), "Target: %s, Source: %s", target_frame.c_str(),
-      source_frame.c_str()
-  );
-  const auto tf_stamped = get_transform(target_frame, source_frame, )
-  const auto eigen_matrix = utility::tf_stamped_to_eigen(tf_stamped);
-  pcl::transformPointCloud(incloud, outcloud, eigen_matrix);
-}
+// void NDTLocalization::transform_pointcloud(
+//     const PointCloud &incloud, PointCloud &outcloud,
+//     const std::string &target_frame, const std::string &source_frame
+// ) const {
+//   RCLCPP_INFO(
+//       get_logger(), "Target: %s, Source: %s", target_frame.c_str(),
+//       source_frame.c_str()
+//   );
+//   const auto tf_stamped = get_transform(target_frame, source_frame, );
+//   const auto eigen_matrix = utility::tf_stamped_to_eigen(tf_stamped);
+//   pcl::transformPointCloud(incloud, outcloud, eigen_matrix);
+// }
 
 void NDTLocalization::publish_transform(
     geometry_msgs::msg::PoseStamped &pose_msg
@@ -199,10 +199,9 @@ void NDTLocalization::publish_path(geometry_msgs::msg::PoseStamped &pose_msg) {
 }
 
 geometry_msgs::msg::TransformStamped NDTLocalization::get_transform(
-  const std::string &target_frame,
-  const std::string &source_frame,
-  const rclcpp::Time &stamp
-) {
+    const std::string &target_frame, const std::string &source_frame,
+    const rclcpp::Time &stamp
+) const {
   auto id = utility::identity_tf_stamped(target_frame, source_frame, stamp);
 
   if (target_frame == source_frame) {
@@ -211,10 +210,10 @@ geometry_msgs::msg::TransformStamped NDTLocalization::get_transform(
 
   geometry_msgs::msg::TransformStamped tf_stamped;
   try {
-    tf_stamped = tf2_buffer_.lookupTransform(
-      target_frame, source_frame, tf2::TimePointZero
+    tf_stamped = tf_buffer_.lookupTransform(
+        target_frame, source_frame, tf2::TimePointZero
     );
-  } catch (const tf2::TransformException & ex) {
+  } catch (const tf2::TransformException &ex) {
     RCLCPP_WARN(get_logger(), "%s", ex.what());
     tf_stamped = id;
   }

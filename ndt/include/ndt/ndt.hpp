@@ -11,13 +11,12 @@
 
 #include <geometry_msgs/msg/pose_stamped.hpp>
 #include <geometry_msgs/msg/pose_with_covariance_stamped.hpp>
+#include <mutex>
 #include <nav_msgs/msg/path.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
 #include <tf2_eigen/tf2_eigen.hpp>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
-
-#include <mutex>
 
 namespace localization {
 class NDTLocalization : public rclcpp::Node {
@@ -41,13 +40,20 @@ class NDTLocalization : public rclcpp::Node {
   void publish_transform(geometry_msgs::msg::PoseStamped &pose_msg) const;
   void publish_path(geometry_msgs::msg::PoseStamped &pose_msg);
   void publish_cloud(
-    const PointCloud::Ptr &cloud, const rclcpp::Time &stamp,
-    const Eigen::Matrix4f &pose
+      const PointCloud::Ptr &cloud, const rclcpp::Time &stamp,
+      const Eigen::Matrix4f &pose
   );
   void transform_pointcloud(
       const PointCloud &incloud, PointCloud &outcloud,
       const std::string &target_frame, const std::string &source_frame
   ) const;
+  geometry_msgs::msg::TransformStamped get_transform(
+      const std::string &target_frame, const std::string &source_frame,
+      const rclcpp::Time &stamp
+  ) const;
+  void ndt_initguess_from_odom(
+      Eigen::Matrix4f &ndt_pose, const rclcpp::Time &stamp
+  );
 
   rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr pose_pub_;
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr cloud_pub_;
@@ -65,12 +71,14 @@ class NDTLocalization : public rclcpp::Node {
   Eigen::Matrix4f ndt_pose_, prev_odom_pose_;
   nav_msgs::msg::Path path_;
 
-  std::string map_frame_, vehicle_frame_, laser_frame_, initial_pose_frame_;
+  std::string map_frame_, vehicle_frame_, laser_frame_, initial_pose_frame_,
+      odom_frame_;
   std::string scan_topic_, initial_pose_topic_, map_topic_, pose_topic_,
       path_topic_, cloud_topic_, tf_topic_;
 
   int index_{0};
 
+  bool use_odom_{false};
   bool map_received_{false};
   bool initial_pose_received_{false};
 
